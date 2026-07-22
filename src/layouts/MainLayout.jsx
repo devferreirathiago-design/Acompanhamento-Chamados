@@ -383,6 +383,8 @@ const shStyles = `
           display: flex;
           gap: 8px;
           margin-top: 14px;
+          align-items: center;
+          flex-wrap: wrap;
         }
         .sh-ghost-btn {
           background: transparent;

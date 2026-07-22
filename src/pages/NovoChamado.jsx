@@ -52,6 +52,10 @@ export default function NovoChamado() {
       setErro("Informe quem está cadastrando o chamado.");
       return;
     }
+    if (!form.numeroSic.trim()) {
+      setErro("Informe o número do SIC.");
+      return;
+    }
     if (!form.tipoOcorrencia) {
       setErro("Selecione o tipo de ocorrência.");
       return;
@@ -97,7 +101,7 @@ export default function NovoChamado() {
           />
         </div>
         <div className="sh-field">
-          <label className="sh-label">Número do SIC (opcional)</label>
+          <label className="sh-label">Número do SIC</label>
           <input
             placeholder="Ex: 12345"
             value={form.numeroSic}

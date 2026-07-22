@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History } from "lucide-react";
+import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History, Trash2 } from "lucide-react";
 import {
   fetchFiliais,
   fetchChamados,
   fetchHistorico,
   updateChamadoStatus,
   updateChamado,
+  deleteChamado,
   subscribeToChamados,
   subscribeToHistorico,
 } from "../services/chamados";
@@ -46,6 +47,8 @@ export default function Dashboard() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editErro, setEditErro] = useState("");
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -201,6 +204,22 @@ export default function Dashboard() {
     }
   }
 
+  async function confirmarExclusao(chamado) {
+    setExcluindo(true);
+    try {
+      await deleteChamado(chamado.dbId);
+      setChamados((prev) => prev.filter((c) => c.dbId !== chamado.dbId));
+      setExpanded(null);
+      setConfirmandoExclusao(null);
+      setEditingId(null);
+      setEditForm(null);
+    } catch (err) {
+      setActionError(`Não consegui excluir o chamado: ${err.message}`);
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
   function startEdit(c) {
     setEditingId(c.id);
     setEditForm({ ...c, valor: String(c.valor) });
@@ -254,6 +273,10 @@ export default function Dashboard() {
     }
     if (chamados.some((c) => c.id === novoId && c.id !== editingId)) {
       setEditErro("Já existe um chamado com esse ID de pedido.");
+      return;
+    }
+    if (!editForm.numeroSic.trim()) {
+      setEditErro("Informe o número do SIC.");
       return;
     }
     if (!editForm.tipoOcorrencia) {
@@ -465,6 +488,37 @@ export default function Dashboard() {
                     <button type="button" className="sh-ghost-btn" onClick={() => startEdit(c)}>
                       <Pencil size={12} /> Editar chamado
                     </button>
+                    {confirmandoExclusao === c.dbId ? (
+                      <>
+                        <span style={{ fontSize: 12, color: "#e8735d", alignSelf: "center" }}>
+                          Excluir permanentemente?
+                        </span>
+                        <button
+                          type="button"
+                          className="sh-ghost-btn"
+                          style={{ borderColor: "#e8735d", color: "#e8735d" }}
+                          disabled={excluindo}
+                          onClick={() => confirmarExclusao(c)}
+                        >
+                          {excluindo ? "Excluindo..." : "Sim, excluir"}
+                        </button>
+                        <button
+                          type="button"
+                          className="sh-ghost-btn"
+                          onClick={() => setConfirmandoExclusao(null)}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="sh-ghost-btn"
+                        onClick={() => setConfirmandoExclusao(c.dbId)}
+                      >
+                        <Trash2 size={12} /> Excluir
+                      </button>
+                    )}
                   </div>
 
                   <div className="sh-timeline">
@@ -639,6 +693,38 @@ export default function Dashboard() {
                     <button type="button" className="sh-ghost-btn" onClick={cancelEdit}>
                       Cancelar
                     </button>
+                    <span style={{ flex: 1 }} />
+                    {confirmandoExclusao === c.dbId ? (
+                      <>
+                        <span style={{ fontSize: 12, color: "#e8735d" }}>
+                          Excluir permanentemente?
+                        </span>
+                        <button
+                          type="button"
+                          className="sh-ghost-btn"
+                          style={{ borderColor: "#e8735d", color: "#e8735d" }}
+                          disabled={excluindo}
+                          onClick={() => confirmarExclusao(c)}
+                        >
+                          {excluindo ? "Excluindo..." : "Sim, excluir"}
+                        </button>
+                        <button
+                          type="button"
+                          className="sh-ghost-btn"
+                          onClick={() => setConfirmandoExclusao(null)}
+                        >
+                          Cancelar exclusão
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="sh-ghost-btn"
+                        onClick={() => setConfirmandoExclusao(c.dbId)}
+                      >
+                        <Trash2 size={12} /> Excluir
+                      </button>
+                    )}
                   </div>
                 </form>
               )}

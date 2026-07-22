@@ -147,6 +147,11 @@ export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
   return normalizeChamado(data);
 }
 
+export async function deleteChamado(dbId) {
+  const { error } = await supabase.from("chamados").delete().eq("id", dbId);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------
 // Realtime — mantém o painel sincronizado entre abas/usuários
 // sem precisar recarregar a página.
