@@ -8,12 +8,14 @@ export function normalizeChamado(row) {
   return {
     dbId: row.id,
     id: row.id_pedido,
+    numeroSic: row.numero_sic || "",
     filial: row.numero_filial,
     canal: row.canal_venda,
     modal: row.modal_logistico,
     valor: Number(row.valor_pedido),
     solicitante: row.solicitante,
     cadastradoPor: row.cadastrado_por,
+    tipoOcorrencia: row.tipo_ocorrencia,
     status: row.status,
     proxima: row.responsavel_proxima_acao,
     descricao: row.descricao,
@@ -68,25 +70,28 @@ export async function addHistorico(chamadoDbId, usuario, descricao) {
 
 export async function createChamado({
   idPedido,
+  numeroSic,
   filial,
   canal,
   modal,
   valor,
   solicitante,
   cadastradoPor,
+  tipoOcorrencia,
   descricao,
 }) {
   const { data, error } = await supabase
     .from("chamados")
     .insert({
       id_pedido: idPedido,
+      numero_sic: numeroSic || null,
       numero_filial: Number(filial),
       canal_venda: canal,
       modal_logistico: modal,
       valor_pedido: Number(valor),
       solicitante,
       cadastrado_por: cadastradoPor,
-      tipo_ocorrencia: "Outros",
+      tipo_ocorrencia: tipoOcorrencia,
       responsavel_proxima_acao: "Operação",
       descricao: descricao || "Sem descrição informada.",
     })
@@ -119,11 +124,13 @@ export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
     .from("chamados")
     .update({
       id_pedido: fields.id,
+      numero_sic: fields.numeroSic || null,
       numero_filial: Number(fields.filial),
       canal_venda: fields.canal,
       modal_logistico: fields.modal,
       valor_pedido: Number(fields.valor),
       solicitante: fields.solicitante,
+      tipo_ocorrencia: fields.tipoOcorrencia,
       status: fields.status,
       responsavel_proxima_acao: fields.proxima,
       descricao: fields.descricao || "Sem descrição informada.",

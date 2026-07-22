@@ -278,7 +278,7 @@ const shStyles = `
         }
         .sh-row {
           display: grid;
-          grid-template-columns: 130px 1fr 90px 170px 130px 90px;
+          grid-template-columns: 140px 90px 1fr 90px 170px 130px 90px;
           gap: 12px;
           align-items: center;
           padding: 12px 16px;
@@ -357,6 +357,7 @@ const shStyles = `
           display: inline-flex;
           align-items: center;
           gap: 5px;
+          max-width: 100%;
           transition: background 0.12s ease;
         }
         .sh-id-btn:hover { background: var(--surface-2); color: var(--text); }
@@ -364,6 +365,12 @@ const shStyles = `
         .sh-id-btn svg { opacity: 0.4; flex-shrink: 0; }
         .sh-id-btn.copied { color: #4fbf7a; }
         .sh-id-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .sh-id-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 106px;
+        }
 
         .sh-detail-row {
           display: flex;

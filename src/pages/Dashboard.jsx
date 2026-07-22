@@ -19,6 +19,7 @@ import {
   PARTY_META,
   PARTY_LIST,
   BANDEIRA_COLOR,
+  TIPO_OCORRENCIA_GRUPOS,
   filialInfo,
   timeAgo,
   urgencyColor,
@@ -221,6 +222,8 @@ export default function Dashboard() {
       }
     };
     comparar("ID do pedido", original.id, editado.id.trim());
+    comparar("Número do SIC", original.numeroSic || "—", editado.numeroSic.trim() || "—");
+    comparar("Tipo de ocorrência", original.tipoOcorrencia, editado.tipoOcorrencia);
     comparar("Filial", original.filial, Number(editado.filial), (v) => {
       const f = filialInfo(filiais, v);
       return f ? f.nome : v;
@@ -251,6 +254,10 @@ export default function Dashboard() {
     }
     if (chamados.some((c) => c.id === novoId && c.id !== editingId)) {
       setEditErro("Já existe um chamado com esse ID de pedido.");
+      return;
+    }
+    if (!editForm.tipoOcorrencia) {
+      setEditErro("Selecione o tipo de ocorrência.");
       return;
     }
     if (!editForm.valor || Number(editForm.valor) <= 0) {
@@ -354,6 +361,7 @@ export default function Dashboard() {
       <div className="sh-table-wrap">
         <div className="sh-row head">
           <div>Pedido</div>
+          <div>SIC</div>
           <div>Filial</div>
           <div>Canal</div>
           <div>Status</div>
@@ -382,11 +390,14 @@ export default function Dashboard() {
                     e.stopPropagation();
                     copyId(c.id);
                   }}
-                  title="Copiar ID do pedido"
+                  title={`${c.id} — clique para copiar`}
                 >
                   {copiedId === c.id ? <Check size={12} /> : <Copy size={12} />}
-                  {c.id}
+                  <span className="sh-id-text">{c.id}</span>
                 </button>
+                <div className="sh-mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  {c.numeroSic || "—"}
+                </div>
                 <div>
                   <div className="sh-filial-name">{f?.nome}</div>
                   <div className="sh-filial-bandeira">
@@ -427,9 +438,15 @@ export default function Dashboard() {
                     </select>
                   </div>
                   <div style={{ marginBottom: 8 }}>
+                    <strong>Tipo de ocorrência:</strong> {c.tipoOcorrencia || "—"}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
                     <strong>Descrição:</strong> {c.descricao}
                   </div>
                   <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                    <div>
+                      <strong>Número do SIC:</strong> {c.numeroSic || "—"}
+                    </div>
                     <div>
                       <strong>Modal logístico:</strong> {c.modal}
                     </div>
@@ -482,13 +499,41 @@ export default function Dashboard() {
                 <form className="sh-detail" onClick={(e) => e.stopPropagation()} onSubmit={saveEdit}>
                   {editErro && <div className="sh-error">{editErro}</div>}
 
-                  <div className="sh-edit-grid full">
+                  <div className="sh-edit-grid">
                     <div className="sh-field">
                       <label className="sh-label">ID do pedido</label>
                       <input
                         value={editForm.id}
                         onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
                       />
+                    </div>
+                    <div className="sh-field">
+                      <label className="sh-label">Número do SIC</label>
+                      <input
+                        value={editForm.numeroSic}
+                        onChange={(e) => setEditForm({ ...editForm, numeroSic: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sh-edit-grid full">
+                    <div className="sh-field">
+                      <label className="sh-label">Tipo de ocorrência</label>
+                      <select
+                        value={editForm.tipoOcorrencia}
+                        onChange={(e) => setEditForm({ ...editForm, tipoOcorrencia: e.target.value })}
+                      >
+                        <option value="" disabled>
+                          Selecione...
+                        </option>
+                        {TIPO_OCORRENCIA_GRUPOS.map((g) => (
+                          <optgroup key={g.grupo} label={g.grupo}>
+                            {g.opcoes.map((o) => (
+                              <option key={o}>{o}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

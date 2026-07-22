@@ -39,6 +39,52 @@ export const PARTY_META = {
 
 export const PARTY_LIST = Object.keys(PARTY_META);
 
+export const TIPO_OCORRENCIA_GRUPOS = [
+  {
+    grupo: "Item e Estoque",
+    opcoes: [
+      "Cadastro de item",
+      "Devolução",
+      "Erro de estoque",
+      "Falta de item",
+      "Item avariado",
+      "Item incorreto",
+      "Troca",
+    ],
+  },
+  {
+    grupo: "Logística e Entrega",
+    opcoes: [
+      "Coleta",
+      "Entrega concluída",
+      "Entregador extra",
+      "Extravio",
+      "Falta de energia",
+      "Fora de rota",
+      "Reclamação sobre entregador",
+      "Reenvio",
+    ],
+  },
+  {
+    grupo: "Financeiro",
+    opcoes: ["Comprovante de estorno", "Cupom de desconto", "PBM"],
+  },
+  {
+    grupo: "Processo e Sistema",
+    opcoes: [
+      "Acareação",
+      "Cancelamento",
+      "Erro de integração",
+      "Erro FMS/PDV",
+      "Erro operacional",
+      "Solicitação incorreta",
+      "Verificação de status",
+    ],
+  },
+];
+
+export const TIPO_OCORRENCIA_LIST = TIPO_OCORRENCIA_GRUPOS.flatMap((g) => g.opcoes);
+
 export const BANDEIRA_COLOR = {
   Drogasmil: "#4F8FE8",
   Farmalife: "#4FBF7A",

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { fetchFiliais, fetchChamados, createChamado } from "../services/chamados";
-import { CANAIS, MODAIS, SOLICITANTES } from "../constants/chamados";
+import { CANAIS, MODAIS, SOLICITANTES, TIPO_OCORRENCIA_GRUPOS } from "../constants/chamados";
 
 export default function NovoChamado() {
   const navigate = useNavigate();
@@ -14,12 +14,14 @@ export default function NovoChamado() {
 
   const [form, setForm] = useState({
     id: "",
+    numeroSic: "",
     filial: "",
     canal: CANAIS[0],
     modal: MODAIS[0],
     valor: "",
     solicitante: SOLICITANTES[0],
     cadastradoPor: usuario || "",
+    tipoOcorrencia: "",
     descricao: "",
   });
 
@@ -50,6 +52,10 @@ export default function NovoChamado() {
       setErro("Informe quem está cadastrando o chamado.");
       return;
     }
+    if (!form.tipoOcorrencia) {
+      setErro("Selecione o tipo de ocorrência.");
+      return;
+    }
     if (!form.valor || Number(form.valor) <= 0) {
       setErro("Informe um valor de pedido válido.");
       return;
@@ -59,12 +65,14 @@ export default function NovoChamado() {
     try {
       await createChamado({
         idPedido,
+        numeroSic: form.numeroSic.trim(),
         filial: form.filial,
         canal: form.canal,
         modal: form.modal,
         valor: form.valor,
         solicitante: form.solicitante,
         cadastradoPor: form.cadastradoPor.trim(),
+        tipoOcorrencia: form.tipoOcorrencia,
         descricao: form.descricao.trim(),
       });
       navigate("/");
@@ -79,13 +87,42 @@ export default function NovoChamado() {
     <form className="sh-form" onSubmit={handleSubmit}>
       {erro && <div className="sh-error">{erro}</div>}
 
+      <div className="sh-row2">
+        <div className="sh-field">
+          <label className="sh-label">ID do pedido</label>
+          <input
+            placeholder="Ex: PED-004900"
+            value={form.id}
+            onChange={(e) => setForm({ ...form, id: e.target.value })}
+          />
+        </div>
+        <div className="sh-field">
+          <label className="sh-label">Número do SIC (opcional)</label>
+          <input
+            placeholder="Ex: 12345"
+            value={form.numeroSic}
+            onChange={(e) => setForm({ ...form, numeroSic: e.target.value })}
+          />
+        </div>
+      </div>
+
       <div className="sh-field">
-        <label className="sh-label">ID do pedido</label>
-        <input
-          placeholder="Ex: PED-004900"
-          value={form.id}
-          onChange={(e) => setForm({ ...form, id: e.target.value })}
-        />
+        <label className="sh-label">Tipo de ocorrência</label>
+        <select
+          value={form.tipoOcorrencia}
+          onChange={(e) => setForm({ ...form, tipoOcorrencia: e.target.value })}
+        >
+          <option value="" disabled>
+            Selecione...
+          </option>
+          {TIPO_OCORRENCIA_GRUPOS.map((g) => (
+            <optgroup key={g.grupo} label={g.grupo}>
+              {g.opcoes.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
       </div>
 
       <div className="sh-row2">

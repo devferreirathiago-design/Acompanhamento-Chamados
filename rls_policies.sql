@@ -57,3 +57,27 @@ create policy "anon pode inserir historico"
 
 alter table chamados add constraint chamados_id_pedido_key unique (id_pedido);
 
+-- ============================================================
+-- Habilita o Realtime (transmissão de mudanças ao vivo) nas
+-- tabelas chamados e historico_chamados. Idempotente — pode
+-- rodar mais de uma vez sem erro.
+-- ============================================================
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'chamados'
+  ) then
+    alter publication supabase_realtime add table chamados;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'historico_chamados'
+  ) then
+    alter publication supabase_realtime add table historico_chamados;
+  end if;
+end $$;
+
+
