@@ -1,15 +1,17 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Sun, Moon } from "lucide-react";
 import { useUsuarioAtual } from "../hooks/useUsuarioAtual";
+import { useTema } from "../hooks/useTema";
 
 export default function MainLayout() {
   const [usuario, setUsuario] = useUsuarioAtual();
+  const [tema, alternarTema] = useTema();
   const [nomeTemp, setNomeTemp] = useState("");
 
   if (!usuario) {
     return (
-      <div className="sh-root">
+      <div className="sh-root" data-theme={tema}>
         <style>{shStyles}</style>
         <div className="sh-gate">
           <p className="sh-eyebrow">StatusHub · Rede D1000</p>
@@ -43,7 +45,7 @@ export default function MainLayout() {
   }
 
   return (
-    <div className="sh-root">
+    <div className="sh-root" data-theme={tema}>
       <style>{shStyles}</style>
 
       <div className="sh-header">
@@ -52,6 +54,15 @@ export default function MainLayout() {
           <h1 className="sh-title">Acompanhamento de Chamados</h1>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <button
+            type="button"
+            onClick={alternarTema}
+            className="sh-theme-toggle"
+            title={tema === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+            aria-label="Alternar tema"
+          >
+            {tema === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
           <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
             Olá, <strong style={{ color: "var(--text)" }}>{usuario}</strong>{" "}
             ·{" "}
@@ -87,7 +98,7 @@ export default function MainLayout() {
 }
 
 const shStyles = `
-        .sh-root {
+        .sh-root[data-theme="dark"] {
           --bg: #12161d;
           --surface: #1a2029;
           --surface-2: #212836;
@@ -96,14 +107,44 @@ const shStyles = `
           --text-dim: #8b93a3;
           --text-faint: #5b6472;
           --accent: #4f8fe8;
+          --accent-text: #0d1117;
+        }
+        .sh-root[data-theme="light"] {
+          --bg: #f4f5f7;
+          --surface: #ffffff;
+          --surface-2: #eef0f3;
+          --border: #dde1e6;
+          --text: #1a2029;
+          --text-dim: #5b6472;
+          --text-faint: #8b93a3;
+          --accent: #2f6fd6;
+          --accent-text: #ffffff;
+        }
+        .sh-root {
           font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
           background: var(--bg);
           color: var(--text);
           min-height: 100vh;
           padding: 28px 24px 60px;
           box-sizing: border-box;
+          transition: background 0.15s ease, color 0.15s ease;
         }
         .sh-root * { box-sizing: border-box; }
+        .sh-theme-toggle {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          color: var(--text-dim);
+          border-radius: 8px;
+          width: 30px;
+          height: 30px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.12s ease;
+        }
+        .sh-theme-toggle:hover { border-color: var(--accent); color: var(--text); }
+        .sh-theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
         .sh-mono {
           font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
         }
@@ -154,7 +195,7 @@ const shStyles = `
         }
         .sh-tab.active {
           background: var(--accent);
-          color: #0d1117;
+          color: var(--accent-text);
         }
         .sh-tab:not(.active):hover { color: var(--text); }
         .sh-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -355,7 +396,7 @@ const shStyles = `
         .sh-ghost-btn.primary {
           background: var(--accent);
           border-color: var(--accent);
-          color: #0d1117;
+          color: var(--accent-text);
         }
         .sh-ghost-btn.primary:hover { background: #6ba3ee; }
 
@@ -419,7 +460,7 @@ const shStyles = `
         }
         .sh-submit {
           background: var(--accent);
-          color: #0d1117;
+          color: var(--accent-text);
           border: none;
           border-radius: 8px;
           padding: 10px 18px;
