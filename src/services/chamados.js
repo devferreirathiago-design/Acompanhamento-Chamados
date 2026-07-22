@@ -1,0 +1,198 @@
+import { supabase } from "./supabaseClient";
+
+export function normalizeFilial(row) {
+  return { numero: row.numero_filial, nome: row.nome_filial, bandeira: row.bandeira };
+}
+
+export function normalizeChamado(row) {
+  return {
+    dbId: row.id,
+    id: row.id_pedido,
+    filial: row.numero_filial,
+    canal: row.canal_venda,
+    modal: row.modal_logistico,
+    valor: Number(row.valor_pedido),
+    solicitante: row.solicitante,
+    cadastradoPor: row.cadastrado_por,
+    status: row.status,
+    proxima: row.responsavel_proxima_acao,
+    descricao: row.descricao,
+    criado: row.data_criacao,
+  };
+}
+
+export async function fetchFiliais() {
+  const { data, error } = await supabase
+    .from("filiais")
+    .select("numero_filial, nome_filial, bandeira")
+    .order("numero_filial", { ascending: true });
+  if (error) throw error;
+  return data.map(normalizeFilial);
+}
+
+export async function fetchChamados() {
+  const { data, error } = await supabase
+    .from("chamados")
+    .select("*")
+    .order("data_criacao", { ascending: false });
+  if (error) throw error;
+  return data.map(normalizeChamado);
+}
+
+export function normalizeHistorico(row) {
+  return {
+    id: row.id,
+    chamadoId: row.chamado_id,
+    usuario: row.usuario,
+    dataHora: row.data_hora,
+    descricao: row.descricao,
+  };
+}
+
+export async function fetchHistorico(chamadoDbId) {
+  const { data, error } = await supabase
+    .from("historico_chamados")
+    .select("*")
+    .eq("chamado_id", chamadoDbId)
+    .order("data_hora", { ascending: true });
+  if (error) throw error;
+  return data.map(normalizeHistorico);
+}
+
+export async function addHistorico(chamadoDbId, usuario, descricao) {
+  const { error } = await supabase
+    .from("historico_chamados")
+    .insert({ chamado_id: chamadoDbId, usuario, descricao });
+  if (error) throw error;
+}
+
+export async function createChamado({
+  idPedido,
+  filial,
+  canal,
+  modal,
+  valor,
+  solicitante,
+  cadastradoPor,
+  descricao,
+}) {
+  const { data, error } = await supabase
+    .from("chamados")
+    .insert({
+      id_pedido: idPedido,
+      numero_filial: Number(filial),
+      canal_venda: canal,
+      modal_logistico: modal,
+      valor_pedido: Number(valor),
+      solicitante,
+      cadastrado_por: cadastradoPor,
+      tipo_ocorrencia: "Outros",
+      responsavel_proxima_acao: "Operação",
+      descricao: descricao || "Sem descrição informada.",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  const chamado = normalizeChamado(data);
+  await addHistorico(chamado.dbId, cadastradoPor, "Chamado aberto.");
+  return chamado;
+}
+
+export async function updateChamadoStatus(dbId, statusAnterior, novoStatus, usuario) {
+  const { data, error } = await supabase
+    .from("chamados")
+    .update({ status: novoStatus })
+    .eq("id", dbId)
+    .select()
+    .single();
+  if (error) throw error;
+  await addHistorico(
+    dbId,
+    usuario,
+    `Status alterado de "${statusAnterior}" para "${novoStatus}".`
+  );
+  return normalizeChamado(data);
+}
+
+export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
+  const { data, error } = await supabase
+    .from("chamados")
+    .update({
+      id_pedido: fields.id,
+      numero_filial: Number(fields.filial),
+      canal_venda: fields.canal,
+      modal_logistico: fields.modal,
+      valor_pedido: Number(fields.valor),
+      solicitante: fields.solicitante,
+      status: fields.status,
+      responsavel_proxima_acao: fields.proxima,
+      descricao: fields.descricao || "Sem descrição informada.",
+    })
+    .eq("id", dbId)
+    .select()
+    .single();
+  if (error) throw error;
+  await addHistorico(
+    dbId,
+    usuario,
+    resumoMudancas || "Chamado editado."
+  );
+  return normalizeChamado(data);
+}
+
+// ---------------------------------------------------------------
+// Realtime — mantém o painel sincronizado entre abas/usuários
+// sem precisar recarregar a página.
+// ---------------------------------------------------------------
+
+export function subscribeToChamados({ onInsert, onUpdate, onDelete }) {
+  const channel = supabase
+    .channel("realtime-chamados")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "chamados" },
+      (payload) => {
+        console.log("[realtime] INSERT chamados", payload);
+        onInsert?.(normalizeChamado(payload.new));
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "chamados" },
+      (payload) => {
+        console.log("[realtime] UPDATE chamados", payload);
+        onUpdate?.(normalizeChamado(payload.new));
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "DELETE", schema: "public", table: "chamados" },
+      (payload) => {
+        console.log("[realtime] DELETE chamados", payload);
+        onDelete?.(payload.old.id);
+      }
+    )
+    .subscribe((status, err) => {
+      console.log("[realtime] status do canal 'realtime-chamados':", status, err || "");
+    });
+
+  return () => supabase.removeChannel(channel);
+}
+
+export function subscribeToHistorico(chamadoDbId, onInsert) {
+  const channel = supabase
+    .channel(`realtime-historico-${chamadoDbId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "historico_chamados",
+        filter: `chamado_id=eq.${chamadoDbId}`,
+      },
+      (payload) => onInsert(normalizeHistorico(payload.new))
+    )
+    .subscribe();
+
+  return () => supabase.removeChannel(channel);
+}
