@@ -93,19 +93,19 @@ export default function NovoChamado() {
 
       <div className="sh-row2">
         <div className="sh-field">
-          <label className="sh-label">ID do pedido</label>
-          <input
-            placeholder="Ex: PED-004900"
-            value={form.id}
-            onChange={(e) => setForm({ ...form, id: e.target.value })}
-          />
-        </div>
-        <div className="sh-field">
           <label className="sh-label">Número do SIC</label>
           <input
             placeholder="Ex: 12345"
             value={form.numeroSic}
             onChange={(e) => setForm({ ...form, numeroSic: e.target.value })}
+          />
+        </div>
+        <div className="sh-field">
+          <label className="sh-label">ID do pedido</label>
+          <input
+            placeholder="Ex: PED-004900"
+            value={form.id}
+            onChange={(e) => setForm({ ...form, id: e.target.value })}
           />
         </div>
       </div>

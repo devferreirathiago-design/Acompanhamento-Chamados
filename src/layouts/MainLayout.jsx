@@ -241,9 +241,22 @@ const shStyles = `
 
         .sh-toolbar {
           display: flex;
-          gap: 10px;
+          gap: 14px;
           flex-wrap: wrap;
           margin-bottom: 16px;
+          align-items: flex-end;
+        }
+        .sh-filter-group {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        .sh-filter-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-faint);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
         .sh-select, .sh-input {
           background: var(--surface);
@@ -257,6 +270,51 @@ const shStyles = `
           outline: 2px solid var(--accent);
           outline-offset: 1px;
         }
+        .sh-multiselect-btn {
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 140px;
+          justify-content: space-between;
+        }
+        .sh-multiselect-panel {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          z-index: 20;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 8px;
+          min-width: 220px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+        .sh-multiselect-option {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          padding: 6px 4px;
+          cursor: pointer;
+          border-radius: 5px;
+        }
+        .sh-multiselect-option:hover { background: var(--surface-2); }
+        .sh-multiselect-clear {
+          width: 100%;
+          margin-top: 4px;
+          background: transparent;
+          border: none;
+          border-top: 1px solid var(--border);
+          color: var(--text-dim);
+          font-size: 12px;
+          padding: 8px 4px 2px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .sh-multiselect-clear:hover { color: var(--text); }
         .sh-search {
           position: relative;
           flex: 1;
@@ -278,7 +336,7 @@ const shStyles = `
         }
         .sh-row {
           display: grid;
-          grid-template-columns: 140px 90px 1fr 90px 170px 130px 90px;
+          grid-template-columns: 90px 140px 1fr 90px 170px 130px 90px;
           gap: 12px;
           align-items: center;
           padding: 12px 16px;
@@ -525,14 +583,23 @@ const shStyles = `
           padding-top: 14px;
           border-top: 1px solid var(--border);
         }
-        .sh-timeline-title {
+        .sh-timeline-toggle {
+          background: transparent;
+          border: none;
+          color: var(--text-faint);
           font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.06em;
-          color: var(--text-faint);
           font-weight: 600;
-          margin-bottom: 10px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 0;
         }
+        .sh-timeline-toggle:hover { color: var(--text-dim); }
+        .sh-timeline-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .sh-timeline-list { margin-top: 8px; }
         .sh-timeline-item {
           display: flex;
           gap: 10px;

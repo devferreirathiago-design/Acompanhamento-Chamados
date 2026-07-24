@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 export const CANAIS = ["VTEX", "iFood", "Rappi", "Call Center"];
-export const MODAIS = ["Entrega Rápida", "Entregador de Loja", "Retirada em Loja"];
+export const MODAIS = ["Entrega Rápida", "Entregador de Loja", "Retirada em Loja", "Coleta agendada"];
 export const SOLICITANTES = ["Loja", "SAC"];
 
 export const STATUS_LIST = [

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History, Trash2 } from "lucide-react";
+import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History, Trash2, ChevronDown, X } from "lucide-react";
 import {
   fetchFiliais,
   fetchChamados,
@@ -32,14 +32,18 @@ export default function Dashboard() {
   const [chamados, setChamados] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [historicos, setHistoricos] = useState({});
+  const [historicoAberto, setHistoricoAberto] = useState({});
   const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const [fStatus, setFStatus] = useState("Todos");
+  const [fStatusList, setFStatusList] = useState([]);
   const [fBandeira, setFBandeira] = useState("Todas");
+  const [fFilial, setFFilial] = useState("Todas");
+  const [fSolicitante, setFSolicitante] = useState("Todos");
+  const [statusMenuAberto, setStatusMenuAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState("recentes");
 
@@ -97,15 +101,19 @@ export default function Dashboard() {
 
   const filtrados = useMemo(() => {
     const lista = chamados
-      .filter((c) => fStatus === "Todos" || c.status === fStatus)
+      .filter((c) => fStatusList.length === 0 || fStatusList.includes(c.status))
       .filter((c) => {
         if (fBandeira === "Todas") return true;
         return filialInfo(filiais, c.filial)?.bandeira === fBandeira;
       })
+      .filter((c) => fFilial === "Todas" || String(c.filial) === String(fFilial))
+      .filter((c) => fSolicitante === "Todos" || c.solicitante === fSolicitante)
       .filter((c) => {
         if (!busca.trim()) return true;
         const f = filialInfo(filiais, c.filial);
-        return `${c.id} ${f?.nome ?? ""}`.toLowerCase().includes(busca.toLowerCase());
+        return `${c.id} ${c.numeroSic ?? ""} ${f?.nome ?? ""}`
+          .toLowerCase()
+          .includes(busca.toLowerCase());
       });
 
     if (ordenacao === "antigos") {
@@ -126,7 +134,7 @@ export default function Dashboard() {
 
     // "recentes" (padrão)
     return [...lista].sort((a, b) => new Date(b.criado) - new Date(a.criado));
-  }, [chamados, filiais, fStatus, fBandeira, busca, ordenacao]);
+  }, [chamados, filiais, fStatusList, fBandeira, fFilial, fSolicitante, busca, ordenacao]);
 
   const expandedDbId = useMemo(
     () => chamados.find((c) => c.id === expanded)?.dbId,
@@ -148,8 +156,16 @@ export default function Dashboard() {
   }, [expandedDbId]);
 
   function toggleExpand(c) {
-    const abrindo = expanded !== c.id;
-    setExpanded(abrindo ? c.id : null);
+    setExpanded(expanded === c.id ? null : c.id);
+  }
+
+  function toggleStatusFiltro(s) {
+    setFStatusList((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  }
+
+  function toggleHistorico(c) {
+    const abrindo = !historicoAberto[c.dbId];
+    setHistoricoAberto((prev) => ({ ...prev, [c.dbId]: abrindo }));
     if (abrindo && !historicos[c.dbId]) {
       setLoadingHistorico(true);
       fetchHistorico(c.dbId)
@@ -329,9 +345,9 @@ export default function Dashboard() {
 
       <div className="sh-stats">
         <div
-          className={`sh-stat ${fStatus === "Todos" ? "active" : ""}`}
+          className={`sh-stat ${fStatusList.length === 0 ? "active" : ""}`}
           style={{ "--dot": "var(--accent)" }}
-          onClick={() => setFStatus("Todos")}
+          onClick={() => setFStatusList([])}
         >
           <div className="sh-stat-num" style={{ color: "var(--accent)" }}>
             {chamados.length}
@@ -341,9 +357,9 @@ export default function Dashboard() {
         {STATUS_LIST.map((s) => (
           <div
             key={s}
-            className={`sh-stat ${fStatus === s ? "active" : ""}`}
+            className={`sh-stat ${fStatusList.includes(s) ? "active" : ""}`}
             style={{ "--dot": STATUS_META[s].color }}
-            onClick={() => setFStatus(fStatus === s ? "Todos" : s)}
+            onClick={() => toggleStatusFiltro(s)}
           >
             <div className="sh-stat-num" style={{ color: STATUS_META[s].color }}>
               {counts[s]}
@@ -354,37 +370,105 @@ export default function Dashboard() {
       </div>
 
       <div className="sh-toolbar">
-        <div className="sh-search">
-          <Search size={14} />
-          <input
-            placeholder="Buscar por ID do pedido ou filial..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
+        <div className="sh-filter-group" style={{ flex: 1, minWidth: 200 }}>
+          <label className="sh-filter-label">Buscar</label>
+          <div className="sh-search">
+            <Search size={14} />
+            <input
+              placeholder="ID do pedido, SIC ou filial..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+          </div>
         </div>
-        <select className="sh-select" value={fStatus} onChange={(e) => setFStatus(e.target.value)}>
-          <option>Todos</option>
-          {STATUS_LIST.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <select className="sh-select" value={fBandeira} onChange={(e) => setFBandeira(e.target.value)}>
-          <option>Todas</option>
-          {Object.keys(BANDEIRA_COLOR).map((b) => (
-            <option key={b}>{b}</option>
-          ))}
-        </select>
-        <select className="sh-select" value={ordenacao} onChange={(e) => setOrdenacao(e.target.value)}>
-          <option value="recentes">Mais recentes primeiro</option>
-          <option value="antigos">Mais antigos primeiro</option>
-          <option value="atraso">Maior atraso primeiro</option>
-        </select>
+
+        <div className="sh-filter-group" style={{ position: "relative" }}>
+          <label className="sh-filter-label">Status</label>
+          <button
+            type="button"
+            className="sh-select sh-multiselect-btn"
+            onClick={() => setStatusMenuAberto((o) => !o)}
+          >
+            {fStatusList.length === 0
+              ? "Todos"
+              : `${fStatusList.length} selecionado${fStatusList.length > 1 ? "s" : ""}`}
+            <ChevronDown size={13} />
+          </button>
+          {statusMenuAberto && (
+            <div className="sh-multiselect-panel">
+              {STATUS_LIST.map((s) => (
+                <label key={s} className="sh-multiselect-option">
+                  <input
+                    type="checkbox"
+                    checked={fStatusList.includes(s)}
+                    onChange={() => toggleStatusFiltro(s)}
+                  />
+                  {s}
+                </label>
+              ))}
+              {fStatusList.length > 0 && (
+                <button
+                  type="button"
+                  className="sh-multiselect-clear"
+                  onClick={() => setFStatusList([])}
+                >
+                  <X size={11} /> Limpar seleção
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="sh-filter-group">
+          <label className="sh-filter-label">Bandeira</label>
+          <select className="sh-select" value={fBandeira} onChange={(e) => setFBandeira(e.target.value)}>
+            <option value="Todas">Todas</option>
+            {Object.keys(BANDEIRA_COLOR).map((b) => (
+              <option key={b}>{b}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sh-filter-group">
+          <label className="sh-filter-label">Filial</label>
+          <select className="sh-select" value={fFilial} onChange={(e) => setFFilial(e.target.value)}>
+            <option value="Todas">Todas</option>
+            {filiais.map((f) => (
+              <option key={f.numero} value={f.numero}>
+                {f.nome}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sh-filter-group">
+          <label className="sh-filter-label">Solicitante</label>
+          <select
+            className="sh-select"
+            value={fSolicitante}
+            onChange={(e) => setFSolicitante(e.target.value)}
+          >
+            <option value="Todos">Todos</option>
+            {SOLICITANTES.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="sh-filter-group">
+          <label className="sh-filter-label">Ordenar por</label>
+          <select className="sh-select" value={ordenacao} onChange={(e) => setOrdenacao(e.target.value)}>
+            <option value="recentes">Mais recentes primeiro</option>
+            <option value="antigos">Mais antigos primeiro</option>
+            <option value="atraso">Maior atraso primeiro</option>
+          </select>
+        </div>
       </div>
 
       <div className="sh-table-wrap">
         <div className="sh-row head">
-          <div>Pedido</div>
           <div>SIC</div>
+          <div>Pedido</div>
           <div>Filial</div>
           <div>Canal</div>
           <div>Status</div>
@@ -406,6 +490,9 @@ export default function Dashboard() {
           return (
             <div key={c.dbId}>
               <div className="sh-row" onClick={() => toggleExpand(c)}>
+                <div className="sh-mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  {c.numeroSic || "—"}
+                </div>
                 <button
                   type="button"
                   className={`sh-mono sh-id-btn ${copiedId === c.id ? "copied" : ""}`}
@@ -418,9 +505,6 @@ export default function Dashboard() {
                   {copiedId === c.id ? <Check size={12} /> : <Copy size={12} />}
                   <span className="sh-id-text">{c.id}</span>
                 </button>
-                <div className="sh-mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
-                  {c.numeroSic || "—"}
-                </div>
                 <div>
                   <div className="sh-filial-name">{f?.nome}</div>
                   <div className="sh-filial-bandeira">
@@ -522,29 +606,44 @@ export default function Dashboard() {
                   </div>
 
                   <div className="sh-timeline">
-                    <div className="sh-timeline-title">
-                      <History size={11} style={{ verticalAlign: "-2px", marginRight: 5 }} />
+                    <button
+                      type="button"
+                      className="sh-timeline-toggle"
+                      onClick={() => toggleHistorico(c)}
+                    >
+                      <History size={11} />
                       Histórico
-                    </div>
-                    {!historicos[c.dbId] && loadingHistorico && (
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Carregando...</div>
-                    )}
-                    {historicos[c.dbId]?.length === 0 && (
-                      <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
-                        Nenhum evento registrado ainda.
-                      </div>
-                    )}
-                    {historicos[c.dbId]?.map((h) => (
-                      <div key={h.id} className="sh-timeline-item">
-                        <span className="sh-timeline-dot" />
-                        <div>
-                          <div>{h.descricao}</div>
-                          <div className="sh-timeline-meta">
-                            {h.usuario} · {timeAgo(h.dataHora)}
+                      <ChevronDown
+                        size={12}
+                        style={{
+                          transform: historicoAberto[c.dbId] ? "rotate(180deg)" : "none",
+                          transition: "transform 0.15s ease",
+                        }}
+                      />
+                    </button>
+                    {historicoAberto[c.dbId] && (
+                      <div className="sh-timeline-list">
+                        {!historicos[c.dbId] && loadingHistorico && (
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>Carregando...</div>
+                        )}
+                        {historicos[c.dbId]?.length === 0 && (
+                          <div style={{ fontSize: 12, color: "var(--text-faint)" }}>
+                            Nenhum evento registrado ainda.
                           </div>
-                        </div>
+                        )}
+                        {historicos[c.dbId]?.map((h) => (
+                          <div key={h.id} className="sh-timeline-item">
+                            <span className="sh-timeline-dot" />
+                            <div>
+                              <div>{h.descricao}</div>
+                              <div className="sh-timeline-meta">
+                                {h.usuario} · {timeAgo(h.dataHora)}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
@@ -555,17 +654,17 @@ export default function Dashboard() {
 
                   <div className="sh-edit-grid">
                     <div className="sh-field">
-                      <label className="sh-label">ID do pedido</label>
-                      <input
-                        value={editForm.id}
-                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
-                      />
-                    </div>
-                    <div className="sh-field">
                       <label className="sh-label">Número do SIC</label>
                       <input
                         value={editForm.numeroSic}
                         onChange={(e) => setEditForm({ ...editForm, numeroSic: e.target.value })}
+                      />
+                    </div>
+                    <div className="sh-field">
+                      <label className="sh-label">ID do pedido</label>
+                      <input
+                        value={editForm.id}
+                        onChange={(e) => setEditForm({ ...editForm, id: e.target.value })}
                       />
                     </div>
                   </div>
