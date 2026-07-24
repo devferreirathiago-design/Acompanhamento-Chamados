@@ -1,7 +1,12 @@
 import { supabase } from "./supabaseClient";
 
 export function normalizeFilial(row) {
-  return { numero: row.numero_filial, nome: row.nome_filial, bandeira: row.bandeira };
+  return {
+    numero: row.numero_filial,
+    nome: row.nome_filial,
+    bandeira: row.bandeira,
+    regional: row.regional || "",
+  };
 }
 
 export function normalizeChamado(row) {
@@ -26,10 +31,40 @@ export function normalizeChamado(row) {
 export async function fetchFiliais() {
   const { data, error } = await supabase
     .from("filiais")
-    .select("numero_filial, nome_filial, bandeira")
+    .select("numero_filial, nome_filial, bandeira, regional")
     .order("numero_filial", { ascending: true });
   if (error) throw error;
   return data.map(normalizeFilial);
+}
+
+export async function createFilial({ numero, nome, bandeira, regional }) {
+  const { data, error } = await supabase
+    .from("filiais")
+    .insert({
+      numero_filial: Number(numero),
+      nome_filial: nome,
+      bandeira,
+      regional: regional || null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeFilial(data);
+}
+
+export async function updateFilial(numero, { nome, bandeira, regional }) {
+  const { data, error } = await supabase
+    .from("filiais")
+    .update({
+      nome_filial: nome,
+      bandeira,
+      regional: regional || null,
+    })
+    .eq("numero_filial", numero)
+    .select()
+    .single();
+  if (error) throw error;
+  return normalizeFilial(data);
 }
 
 export async function fetchChamados() {

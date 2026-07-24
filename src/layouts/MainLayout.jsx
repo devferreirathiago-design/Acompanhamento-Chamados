@@ -1,44 +1,49 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useState } from "react";
-import { Plus, Sun, Moon } from "lucide-react";
-import { useUsuarioAtual } from "../hooks/useUsuarioAtual";
+import { Plus, Sun, Moon, Settings, Loader2 } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 import { useTema } from "../hooks/useTema";
+import AuthGate from "../components/AuthGate";
 
 export default function MainLayout() {
-  const [usuario, setUsuario] = useUsuarioAtual();
+  const { session, usuario, loading, inativo, sair } = useAuth();
   const [tema, alternarTema] = useTema();
-  const [nomeTemp, setNomeTemp] = useState("");
 
-  if (!usuario) {
+  if (loading) {
+    return (
+      <div className="sh-root" data-theme={tema}>
+        <style>{shStyles}</style>
+        <div className="sh-loading-gate">
+          <Loader2 size={18} className="sh-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="sh-root" data-theme={tema}>
+        <style>{shStyles}</style>
+        <AuthGate />
+      </div>
+    );
+  }
+
+  if (inativo) {
     return (
       <div className="sh-root" data-theme={tema}>
         <style>{shStyles}</style>
         <div className="sh-gate">
           <p className="sh-eyebrow">StatusHub · Rede D1000</p>
-          <h1 className="sh-title" style={{ marginBottom: 18 }}>
-            Antes de começar, como você se chama?
+          <h1 className="sh-title" style={{ marginBottom: 12 }}>
+            Acesso desativado
           </h1>
-          <form
-            className="sh-gate-form"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (nomeTemp.trim()) setUsuario(nomeTemp.trim());
-            }}
-          >
-            <input
-              autoFocus
-              placeholder="Seu nome"
-              value={nomeTemp}
-              onChange={(e) => setNomeTemp(e.target.value)}
-            />
-            <button type="submit" className="sh-submit">
-              Entrar
-            </button>
-          </form>
-          <p style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 10 }}>
-            Isso identifica suas ações no histórico dos chamados — fica salvo só
-            neste navegador, não é um login de verdade ainda.
+          <p style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 16 }}>
+            Sua conta foi desativada por um administrador. Fale com o time
+            responsável se isso for um engano.
           </p>
+          <button type="button" className="sh-ghost-btn" onClick={sair}>
+            Sair
+          </button>
         </div>
       </div>
     );
@@ -68,7 +73,7 @@ export default function MainLayout() {
             ·{" "}
             <button
               type="button"
-              onClick={() => setUsuario("")}
+              onClick={sair}
               style={{
                 background: "none",
                 border: "none",
@@ -78,7 +83,7 @@ export default function MainLayout() {
                 padding: 0,
               }}
             >
-              trocar
+              sair
             </button>
           </span>
           <div className="sh-tabs">
@@ -87,6 +92,9 @@ export default function MainLayout() {
             </NavLink>
             <NavLink to="/novo" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
               <Plus size={14} /> Novo chamado
+            </NavLink>
+            <NavLink to="/configuracoes" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
+              <Settings size={14} /> Configurações
             </NavLink>
           </div>
         </div>
@@ -320,7 +328,22 @@ const shStyles = `
           flex: 1;
           min-width: 180px;
         }
-        .sh-search input { width: 100%; padding-left: 32px; }
+        .sh-search input {
+          width: 100%;
+          padding-left: 32px;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          color: var(--text);
+          border-radius: 8px;
+          padding-top: 8px;
+          padding-bottom: 8px;
+          padding-right: 10px;
+          font-size: 13px;
+        }
+        .sh-search input:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 1px;
+        }
         .sh-search svg {
           position: absolute;
           left: 9px;
@@ -577,6 +600,48 @@ const shStyles = `
           outline: 2px solid var(--accent);
           outline-offset: 1px;
         }
+        .sh-form-gate {
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 22px;
+        }
+        .sh-form-gate .sh-field input {
+          width: 100%;
+          background: var(--bg);
+          border: 1px solid var(--border);
+          color: var(--text);
+          border-radius: 8px;
+          padding: 9px 11px;
+          font-size: 13px;
+          font-family: inherit;
+        }
+        .sh-form-gate .sh-field input:focus-visible {
+          outline: 2px solid var(--accent);
+          outline-offset: 1px;
+        }
+        .sh-form-gate .sh-submit { width: 100%; justify-content: center; }
+        .sh-gate-links {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 14px;
+        }
+        .sh-link-btn {
+          background: none;
+          border: none;
+          color: var(--accent);
+          cursor: pointer;
+          font-size: 12px;
+          padding: 0;
+        }
+        .sh-link-btn:hover { text-decoration: underline; }
+        .sh-loading-gate {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 60vh;
+          color: var(--text-dim);
+        }
 
         .sh-timeline {
           margin-top: 14px;
@@ -619,4 +684,100 @@ const shStyles = `
           font-size: 11px;
           margin-top: 1px;
         }
+
+        .sh-subtabs {
+          display: flex;
+          gap: 4px;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 20px;
+        }
+        .sh-subtab {
+          border: none;
+          background: transparent;
+          color: var(--text-dim);
+          padding: 9px 14px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -1px;
+          transition: all 0.12s ease;
+        }
+        .sh-subtab:hover { color: var(--text); }
+        .sh-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .sh-subtab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .sh-config-panel { max-width: 820px; }
+        .sh-config-panel-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+          flex-wrap: wrap;
+        }
+        .sh-config-hint {
+          font-size: 12.5px;
+          color: var(--text-dim);
+          margin: 0;
+        }
+        .sh-config-note {
+          font-size: 11.5px;
+          color: var(--text-faint);
+          margin-top: 10px;
+        }
+        .sh-config-row {
+          display: grid;
+          grid-template-columns: 1fr 1.4fr 100px 80px;
+          gap: 12px;
+          align-items: center;
+          padding: 11px 16px;
+          border-bottom: 1px solid var(--border);
+          background: var(--surface);
+          font-size: 13px;
+        }
+        .sh-config-row:last-child { border-bottom: none; }
+        .sh-config-row.head {
+          background: var(--surface-2);
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--text-faint);
+          font-weight: 600;
+        }
+        .sh-config-row-lojas { grid-template-columns: 90px 1.4fr 120px 120px 80px; }
+        .sh-config-actions {
+          display: flex;
+          gap: 4px;
+          justify-content: flex-end;
+        }
+        .sh-icon-btn {
+          background: transparent;
+          border: 1px solid var(--border);
+          color: var(--text-dim);
+          border-radius: 6px;
+          width: 28px;
+          height: 28px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.12s ease;
+        }
+        .sh-icon-btn:hover { border-color: var(--accent); color: var(--text); }
+        .sh-icon-btn.danger:hover { border-color: #e8735d; color: #e8735d; }
+        .sh-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+        .sh-pill-ok {
+          background: rgba(79, 191, 122, 0.14);
+          color: #4fbf7a;
+        }
+        .sh-pill-off {
+          background: rgba(139, 147, 163, 0.16);
+          color: var(--text-dim);
+        }
+        .sh-text-dim { color: var(--text-dim); }
 `;

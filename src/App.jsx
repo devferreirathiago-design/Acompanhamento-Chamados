@@ -2,6 +2,8 @@ import { Routes, Route } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import NovoChamado from "./pages/NovoChamado";
+import Configuracoes from "./pages/Configuracoes";
+import RedefinirSenha from "./pages/RedefinirSenha";
 
 export default function App() {
   return (
@@ -9,6 +11,8 @@ export default function App() {
       <Route element={<MainLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/novo" element={<NovoChamado />} />
+        <Route path="/configuracoes" element={<Configuracoes />} />
+        <Route path="/redefinir-senha" element={<RedefinirSenha />} />
       </Route>
     </Routes>
   );
