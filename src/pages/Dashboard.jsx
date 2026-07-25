@@ -22,8 +22,11 @@ import {
   BANDEIRA_COLOR,
   TIPO_OCORRENCIA_GRUPOS,
   filialInfo,
+  formatDate,
   timeAgo,
   urgencyColor,
+  chamadoIncompleto,
+  camposFaltando,
 } from "../constants/chamados";
 
 export default function Dashboard() {
@@ -48,6 +51,7 @@ export default function Dashboard() {
   const [ordenacao, setOrdenacao] = useState("recentes");
 
   const [copiedId, setCopiedId] = useState(null);
+  const [copiedSolicitacao, setCopiedSolicitacao] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editErro, setEditErro] = useState("");
@@ -111,7 +115,7 @@ export default function Dashboard() {
       .filter((c) => {
         if (!busca.trim()) return true;
         const f = filialInfo(filiais, c.filial);
-        return `${c.id} ${c.numeroSic ?? ""} ${f?.nome ?? ""}`
+        return `${c.id} ${c.idSolicitacao ?? ""} ${f?.nome ?? ""}`
           .toLowerCase()
           .includes(busca.toLowerCase());
       });
@@ -136,27 +140,26 @@ export default function Dashboard() {
     return [...lista].sort((a, b) => new Date(b.criado) - new Date(a.criado));
   }, [chamados, filiais, fStatusList, fBandeira, fFilial, fSolicitante, busca, ordenacao]);
 
-  const expandedDbId = useMemo(
-    () => chamados.find((c) => c.id === expanded)?.dbId,
-    [expanded, chamados]
-  );
+  // `expanded`/`editingId` guardam o dbId (chave interna do Supabase), nunca
+  // o id_pedido — o pedido pode ficar vazio (chamado incompleto) ou repetido
+  // (SAC liga de novo pro mesmo pedido), então não serve como identidade.
 
   // Enquanto um card estiver aberto, escuta novas entradas de histórico
   // (ex: outra pessoa editando o mesmo chamado) e adiciona na timeline ao vivo.
   useEffect(() => {
-    if (!expandedDbId) return;
-    const unsubscribe = subscribeToHistorico(expandedDbId, (novoItem) => {
+    if (!expanded) return;
+    const unsubscribe = subscribeToHistorico(expanded, (novoItem) => {
       setHistoricos((prev) => {
-        const atual = prev[expandedDbId] || [];
+        const atual = prev[expanded] || [];
         if (atual.some((h) => h.id === novoItem.id)) return prev;
-        return { ...prev, [expandedDbId]: [...atual, novoItem] };
+        return { ...prev, [expanded]: [...atual, novoItem] };
       });
     });
     return unsubscribe;
-  }, [expandedDbId]);
+  }, [expanded]);
 
   function toggleExpand(c) {
-    setExpanded(expanded === c.id ? null : c.id);
+    setExpanded(expanded === c.dbId ? null : c.dbId);
   }
 
   function toggleStatusFiltro(s) {
@@ -175,10 +178,10 @@ export default function Dashboard() {
     }
   }
 
-  function copyId(id) {
+  function copyToClipboard(value) {
     const fallback = () => {
       const ta = document.createElement("textarea");
-      ta.value = id;
+      ta.value = value;
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -191,12 +194,22 @@ export default function Dashboard() {
       document.body.removeChild(ta);
     };
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(id).catch(fallback);
+      navigator.clipboard.writeText(value).catch(fallback);
     } else {
       fallback();
     }
+  }
+
+  function copyId(id) {
+    copyToClipboard(id);
     setCopiedId(id);
     setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
+  }
+
+  function copySolicitacao(value) {
+    copyToClipboard(value);
+    setCopiedSolicitacao(value);
+    setTimeout(() => setCopiedSolicitacao((cur) => (cur === value ? null : cur)), 1500);
   }
 
   async function quickStatusChange(chamado, novoStatus) {
@@ -237,10 +250,10 @@ export default function Dashboard() {
   }
 
   function startEdit(c) {
-    setEditingId(c.id);
-    setEditForm({ ...c, valor: String(c.valor) });
+    setEditingId(c.dbId);
+    setEditForm({ ...c, valor: c.valor == null ? "" : String(c.valor) });
     setEditErro("");
-    setExpanded(c.id);
+    setExpanded(c.dbId);
   }
 
   function cancelEdit() {
@@ -257,7 +270,7 @@ export default function Dashboard() {
       }
     };
     comparar("ID do pedido", original.id, editado.id.trim());
-    comparar("Número do SIC", original.numeroSic || "—", editado.numeroSic.trim() || "—");
+    comparar("ID de solicitação", original.idSolicitacao || "—", editado.idSolicitacao.trim() || "—");
     comparar("Tipo de ocorrência", original.tipoOcorrencia, editado.tipoOcorrencia);
     comparar("Filial", original.filial, Number(editado.filial), (v) => {
       const f = filialInfo(filiais, v);
@@ -274,6 +287,8 @@ export default function Dashboard() {
       Number(editado.valor),
       (v) => `R$ ${Number(v).toFixed(2).replace(".", ",")}`
     );
+    comparar("Ordem/prioridade", original.ordem ?? "—", editado.ordem === "" ? "—" : editado.ordem);
+    comparar("Perda financeira", !!original.perda, !!editado.perda, (v) => (v ? "Sim" : "Não"));
     if (original.descricao !== editado.descricao.trim()) {
       partes.push("Descrição atualizada");
     }
@@ -287,12 +302,32 @@ export default function Dashboard() {
       setEditErro("Informe o ID do pedido.");
       return;
     }
-    if (chamados.some((c) => c.id === novoId && c.id !== editingId)) {
-      setEditErro("Já existe um chamado com esse ID de pedido.");
+    if (!editForm.idSolicitacao.trim()) {
+      setEditErro("Informe o ID de solicitação.");
       return;
     }
-    if (!editForm.numeroSic.trim()) {
-      setEditErro("Informe o número do SIC.");
+    if (
+      chamados.some(
+        (c) => c.idSolicitacao === editForm.idSolicitacao.trim() && c.dbId !== editForm.dbId
+      )
+    ) {
+      setEditErro("Já existe um chamado com esse ID de solicitação.");
+      return;
+    }
+    if (!editForm.filial) {
+      setEditErro("Selecione a filial.");
+      return;
+    }
+    if (!editForm.canal) {
+      setEditErro("Selecione o canal de venda.");
+      return;
+    }
+    if (!editForm.modal) {
+      setEditErro("Selecione o modal logístico.");
+      return;
+    }
+    if (!editForm.solicitante) {
+      setEditErro("Selecione o solicitante.");
       return;
     }
     if (!editForm.tipoOcorrencia) {
@@ -311,7 +346,7 @@ export default function Dashboard() {
       setChamados((prev) =>
         prev.map((c) => (c.dbId === editForm.dbId ? atualizado : c))
       );
-      setExpanded(atualizado.id);
+      setExpanded(atualizado.dbId);
       setEditingId(null);
       setEditForm(null);
       fetchHistorico(editForm.dbId).then((items) =>
@@ -375,7 +410,7 @@ export default function Dashboard() {
           <div className="sh-search">
             <Search size={14} />
             <input
-              placeholder="ID do pedido, SIC ou filial..."
+              placeholder="ID do pedido, ID de solicitação ou filial..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
@@ -467,12 +502,13 @@ export default function Dashboard() {
 
       <div className="sh-table-wrap">
         <div className="sh-row head">
-          <div>SIC</div>
+          <div>ID Solic.</div>
           <div>Pedido</div>
           <div>Filial</div>
           <div>Canal</div>
           <div>Status</div>
           <div>Próxima ação</div>
+          <div>Data abertura</div>
           <div>Aberto</div>
         </div>
 
@@ -482,17 +518,34 @@ export default function Dashboard() {
 
         {filtrados.map((c) => {
           const f = filialInfo(filiais, c.filial);
-          const sm = STATUS_META[c.status];
-          const pm = PARTY_META[c.proxima];
+          const sm = STATUS_META[c.status] || STATUS_META["Não iniciado"];
+          const pm = PARTY_META[c.proxima] || PARTY_META["Operação"];
           const StatusIcon = sm.icon;
           const PartyIcon = pm.icon;
-          const isOpen = expanded === c.id;
+          const isOpen = expanded === c.dbId;
+          const incompleto = chamadoIncompleto(c);
           return (
             <div key={c.dbId}>
               <div className="sh-row" onClick={() => toggleExpand(c)}>
-                <div className="sh-mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
-                  {c.numeroSic || "—"}
-                </div>
+                {c.idSolicitacao ? (
+                  <button
+                    type="button"
+                    className={`sh-mono sh-id-btn ${copiedSolicitacao === c.idSolicitacao ? "copied" : ""}`}
+                    style={{ fontSize: 12, color: "var(--text-dim)" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      copySolicitacao(c.idSolicitacao);
+                    }}
+                    title={`${c.idSolicitacao} — clique para copiar`}
+                  >
+                    {copiedSolicitacao === c.idSolicitacao ? <Check size={12} /> : <Copy size={12} />}
+                    <span className="sh-id-text">{c.idSolicitacao}</span>
+                  </button>
+                ) : (
+                  <div className="sh-mono" style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                    —
+                  </div>
+                )}
                 <button
                   type="button"
                   className={`sh-mono sh-id-btn ${copiedId === c.id ? "copied" : ""}`}
@@ -513,11 +566,21 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div style={{ fontSize: 13, color: "var(--text-dim)" }}>{c.canal}</div>
-                <div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
                   <span className="sh-pill" style={{ color: sm.color, background: `${sm.color}22` }}>
                     <StatusIcon size={12} />
                     {c.status}
                   </span>
+                  {incompleto && (
+                    <span
+                      className="sh-pill"
+                      style={{ color: "#E8A23D", background: "#E8A23D22" }}
+                      title={`Faltam: ${camposFaltando(c).join(", ")}`}
+                    >
+                      <AlertTriangle size={11} />
+                      Preencher dados
+                    </span>
+                  )}
                 </div>
                 <div className="sh-baton" style={{ color: pm.color }}>
                   <span className="sh-baton-icon" style={{ background: `${pm.color}22` }}>
@@ -525,13 +588,35 @@ export default function Dashboard() {
                   </span>
                   {c.proxima}
                 </div>
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
+                  {formatDate(c.criado)}
+                </div>
                 <div style={{ fontSize: 12, color: urgencyColor(c), fontWeight: urgencyColor(c) !== "var(--text-faint)" ? 700 : 400 }}>
                   {timeAgo(c.criado)}
                 </div>
               </div>
 
-              {isOpen && editingId !== c.id && (
+              {isOpen && editingId !== c.dbId && (
                 <div className="sh-detail" onClick={(e) => e.stopPropagation()}>
+                  {incompleto && (
+                    <div
+                      style={{
+                        background: "rgba(232,162,61,0.12)",
+                        border: "1px solid #e8a23d",
+                        color: "#f3d3a3",
+                        borderRadius: 8,
+                        padding: "8px 12px",
+                        fontSize: 12.5,
+                        marginBottom: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <AlertTriangle size={14} />
+                      Chamado importado rapidamente — falta preencher: {camposFaltando(c).join(", ")}.
+                    </div>
+                  )}
                   <div className="sh-detail-row">
                     <strong style={{ marginRight: 2 }}>Status:</strong>
                     <select
@@ -552,20 +637,29 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
                     <div>
-                      <strong>Número do SIC:</strong> {c.numeroSic || "—"}
+                      <strong>ID de solicitação:</strong> {c.idSolicitacao || "—"}
                     </div>
                     <div>
-                      <strong>Modal logístico:</strong> {c.modal}
+                      <strong>Modal logístico:</strong> {c.modal || "—"}
                     </div>
                     <div>
                       <strong>Valor do pedido:</strong>{" "}
-                      {c.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                      {c.valor != null
+                        ? c.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+                        : "—"}
                     </div>
                     <div>
-                      <strong>Solicitante:</strong> {c.solicitante}
+                      <strong>Solicitante:</strong> {c.solicitante || "—"}
                     </div>
                     <div>
                       <strong>Cadastrado por:</strong> {c.cadastradoPor}
+                    </div>
+                    <div>
+                      <strong>Ordem/prioridade:</strong> {c.ordem ?? "—"}
+                    </div>
+                    <div>
+                      <strong>Perda financeira:</strong>{" "}
+                      {c.perda == null ? "Não informado" : c.perda ? "Sim" : "Não"}
                     </div>
                   </div>
                   <div className="sh-detail-actions">
@@ -648,16 +742,19 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {isOpen && editingId === c.id && editForm && (
+              {isOpen && editingId === c.dbId && editForm && (
                 <form className="sh-detail" onClick={(e) => e.stopPropagation()} onSubmit={saveEdit}>
                   {editErro && <div className="sh-error">{editErro}</div>}
 
                   <div className="sh-edit-grid">
                     <div className="sh-field">
-                      <label className="sh-label">Número do SIC</label>
+                      <label className="sh-label">ID de solicitação</label>
                       <input
-                        value={editForm.numeroSic}
-                        onChange={(e) => setEditForm({ ...editForm, numeroSic: e.target.value })}
+                        inputMode="numeric"
+                        value={editForm.idSolicitacao}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, idSolicitacao: e.target.value.replace(/\D/g, "") })
+                        }
                       />
                     </div>
                     <div className="sh-field">
@@ -694,9 +791,12 @@ export default function Dashboard() {
                     <div className="sh-field">
                       <label className="sh-label">Filial</label>
                       <select
-                        value={editForm.filial}
+                        value={editForm.filial ?? ""}
                         onChange={(e) => setEditForm({ ...editForm, filial: e.target.value })}
                       >
+                        <option value="" disabled>
+                          Selecione...
+                        </option>
                         {filiais.map((f) => (
                           <option key={f.numero} value={f.numero}>
                             {f.nome} — {f.bandeira}
@@ -707,9 +807,12 @@ export default function Dashboard() {
                     <div className="sh-field">
                       <label className="sh-label">Canal de venda</label>
                       <select
-                        value={editForm.canal}
+                        value={editForm.canal || ""}
                         onChange={(e) => setEditForm({ ...editForm, canal: e.target.value })}
                       >
+                        <option value="" disabled>
+                          Selecione...
+                        </option>
                         {CANAIS.map((ca) => (
                           <option key={ca}>{ca}</option>
                         ))}
@@ -721,9 +824,12 @@ export default function Dashboard() {
                     <div className="sh-field">
                       <label className="sh-label">Modal logístico</label>
                       <select
-                        value={editForm.modal}
+                        value={editForm.modal || ""}
                         onChange={(e) => setEditForm({ ...editForm, modal: e.target.value })}
                       >
+                        <option value="" disabled>
+                          Selecione...
+                        </option>
                         {MODAIS.map((m) => (
                           <option key={m}>{m}</option>
                         ))}
@@ -732,13 +838,38 @@ export default function Dashboard() {
                     <div className="sh-field">
                       <label className="sh-label">Solicitante</label>
                       <select
-                        value={editForm.solicitante}
+                        value={editForm.solicitante || ""}
                         onChange={(e) => setEditForm({ ...editForm, solicitante: e.target.value })}
                       >
+                        <option value="" disabled>
+                          Selecione...
+                        </option>
                         {SOLICITANTES.map((s) => (
                           <option key={s}>{s}</option>
                         ))}
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="sh-edit-grid">
+                    <div className="sh-field">
+                      <label className="sh-label">Ordem / prioridade</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={editForm.ordem ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, ordem: e.target.value })}
+                      />
+                    </div>
+                    <div className="sh-field" style={{ display: "flex", alignItems: "center" }}>
+                      <label className="sh-label" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 18 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!editForm.perda}
+                          onChange={(e) => setEditForm({ ...editForm, perda: e.target.checked })}
+                        />
+                        Houve perda financeira pra loja?
+                      </label>
                     </div>
                   </div>
 

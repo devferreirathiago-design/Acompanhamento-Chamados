@@ -1,0 +1,49 @@
+Chamados importados com mapeamento aproximado — revisar manualmente
+======================================================================
+
+2850110: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+2808560: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2812584: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2813693: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2821230: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2836158: tipo de ocorrência 'Erro Delage' sem correspondência, mapeado por aproximação para 'Erro operacional'
+2836227: tipo de ocorrência 'Erro Delage' sem correspondência, mapeado por aproximação para 'Erro operacional'
+2837145: tipo de ocorrência 'Erro Delage' sem correspondência, mapeado por aproximação para 'Erro operacional'
+2840393: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2847302: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2854458: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2865407: tipo de ocorrência 'Erro Delage' sem correspondência, mapeado por aproximação para 'Erro operacional'
+2866696: tipo de ocorrência 'Reclamação' (genérico) mapeado por aproximação para 'Reclamação sobre entregador'
+2874978: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2876471: tipo de ocorrência 'Reclamação' (genérico) mapeado por aproximação para 'Reclamação sobre entregador'
+2878044: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2881254: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2883191: tipo de ocorrência 'Erro Delage' sem correspondência, mapeado por aproximação para 'Erro operacional'
+2909749: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+2943253: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2945947: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2953441: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2953927: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2957210: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+2985953: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+2986672: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+3001942: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+3002682: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+3002853: modal 'SidLog' mapeado por aproximação para 'Coleta agendada'
+3003567: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3010201: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3016120: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3019601: tipo de ocorrência 'Reclamação' (genérico) mapeado por aproximação para 'Reclamação sobre entregador'
+3025988: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3033704: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+3080953: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+3090576: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+3044139: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3056104: modal 'Marketplace In' não tinha correspondência clara, ficou em branco
+3058349: tipo de ocorrência 'Entregador faltou' sem correspondência exata, mapeado por aproximação para 'Entregador extra'
+3092822: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+3092754: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+3092601: status 'Aguardando Ju' não tinha correspondência, mapeado por aproximação para 'Em andamento'
+2825678: número de solicitação '2825678' duplicado na própria planilha (pedido 1622482454269-01, aba Maio) — ficou sem id_solicitacao, precisa achar o número certo manualmente
+468894813: número de solicitação '468894813' duplicado na própria planilha (pedido 1632772567419-01, aba Maio) — ficou sem id_solicitacao, precisa achar o número certo manualmente
+486446774: número de solicitação '486446774' duplicado na própria planilha (pedido ORD-4382405-C, aba Junho) — ficou sem id_solicitacao, precisa achar o número certo manualmente

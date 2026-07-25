@@ -12,19 +12,21 @@ export function normalizeFilial(row) {
 export function normalizeChamado(row) {
   return {
     dbId: row.id,
-    id: row.id_pedido,
-    numeroSic: row.numero_sic || "",
+    id: row.id_pedido || "",
+    idSolicitacao: row.id_solicitacao || "",
     filial: row.numero_filial,
-    canal: row.canal_venda,
-    modal: row.modal_logistico,
-    valor: Number(row.valor_pedido),
-    solicitante: row.solicitante,
+    canal: row.canal_venda || "",
+    modal: row.modal_logistico || "",
+    valor: row.valor_pedido == null ? null : Number(row.valor_pedido),
+    solicitante: row.solicitante || "",
     cadastradoPor: row.cadastrado_por,
-    tipoOcorrencia: row.tipo_ocorrencia,
+    tipoOcorrencia: row.tipo_ocorrencia || "",
     status: row.status,
     proxima: row.responsavel_proxima_acao,
     descricao: row.descricao,
     criado: row.data_criacao,
+    perda: row.perda,
+    ordem: row.ordem,
   };
 }
 
@@ -105,7 +107,7 @@ export async function addHistorico(chamadoDbId, usuario, descricao) {
 
 export async function createChamado({
   idPedido,
-  numeroSic,
+  idSolicitacao,
   filial,
   canal,
   modal,
@@ -114,28 +116,82 @@ export async function createChamado({
   cadastradoPor,
   tipoOcorrencia,
   descricao,
+  perda,
+  ordem,
+  criadoEm,
 }) {
+  const linha = {
+    id_pedido: idPedido || null,
+    id_solicitacao: idSolicitacao || null,
+    numero_filial: filial ? Number(filial) : null,
+    canal_venda: canal || null,
+    modal_logistico: modal || null,
+    valor_pedido: valor ? Number(valor) : null,
+    solicitante: solicitante || null,
+    cadastrado_por: cadastradoPor,
+    tipo_ocorrencia: tipoOcorrencia || null,
+    responsavel_proxima_acao: "Operação",
+    descricao: descricao || "Sem descrição informada.",
+    perda: perda ?? null,
+    ordem: ordem ?? null,
+  };
+  if (criadoEm) linha.data_criacao = criadoEm;
+
   const { data, error } = await supabase
     .from("chamados")
-    .insert({
-      id_pedido: idPedido,
-      numero_sic: numeroSic || null,
-      numero_filial: Number(filial),
-      canal_venda: canal,
-      modal_logistico: modal,
-      valor_pedido: Number(valor),
-      solicitante,
-      cadastrado_por: cadastradoPor,
-      tipo_ocorrencia: tipoOcorrencia,
-      responsavel_proxima_acao: "Operação",
-      descricao: descricao || "Sem descrição informada.",
-    })
+    .insert(linha)
     .select()
     .single();
   if (error) throw error;
   const chamado = normalizeChamado(data);
   await addHistorico(chamado.dbId, cadastradoPor, "Chamado aberto.");
   return chamado;
+}
+
+// Criação em lote pra importação rápida da fila: só id de solicitação +
+// data de abertura. O resto fica em branco até alguém completar pela
+// tela de edição (o chamado aparece com a tag "Preencher dados").
+export async function createChamadosRapidos(lista, cadastradoPor) {
+  const linhas = lista.map((item) => ({
+    id_solicitacao: item.idSolicitacao || null,
+    // Preenche null explicitamente (em vez de omitir a chave) porque
+    // algumas colunas têm valor padrão '' no banco — se a gente só
+    // omitisse, o Postgres usaria o padrão em vez de deixar em branco,
+    // e '' não bate com nenhum valor aceito pelas constraints de check.
+    id_pedido: null,
+    numero_filial: null,
+    canal_venda: null,
+    modal_logistico: null,
+    valor_pedido: null,
+    solicitante: null,
+    tipo_ocorrencia: null,
+    perda: null,
+    ordem: null,
+    cadastrado_por: cadastradoPor,
+    responsavel_proxima_acao: "Operação",
+    descricao: "Importado da fila — aguardando preenchimento dos dados.",
+    // Sempre manda data_criacao (nunca omite): num insert em lote, o
+    // Supabase monta um único INSERT com a união das colunas de todas
+    // as linhas — se só ALGUMAS linhas tivessem essa chave, as outras
+    // receberiam NULL explícito nessa coluna (e não o padrão now() do
+    // banco), o que quebra a constraint de "not null". Por isso, se
+    // não veio data reconhecida da planilha, usa a data de agora.
+    data_criacao: item.criadoEm || new Date().toISOString(),
+  }));
+
+  const { data, error } = await supabase.from("chamados").insert(linhas).select();
+  if (error) throw error;
+  const chamados = data.map(normalizeChamado);
+
+  const historicoLinhas = chamados.map((c) => ({
+    chamado_id: c.dbId,
+    usuario: cadastradoPor,
+    descricao: "Chamado importado da fila (dados pendentes de preenchimento).",
+  }));
+  const { error: histError } = await supabase.from("historico_chamados").insert(historicoLinhas);
+  if (histError) throw histError;
+
+  return chamados;
 }
 
 export async function updateChamadoStatus(dbId, statusAnterior, novoStatus, usuario) {
@@ -158,17 +214,19 @@ export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
   const { data, error } = await supabase
     .from("chamados")
     .update({
-      id_pedido: fields.id,
-      numero_sic: fields.numeroSic || null,
-      numero_filial: Number(fields.filial),
-      canal_venda: fields.canal,
-      modal_logistico: fields.modal,
-      valor_pedido: Number(fields.valor),
-      solicitante: fields.solicitante,
-      tipo_ocorrencia: fields.tipoOcorrencia,
+      id_pedido: fields.id || null,
+      id_solicitacao: fields.idSolicitacao || null,
+      numero_filial: fields.filial ? Number(fields.filial) : null,
+      canal_venda: fields.canal || null,
+      modal_logistico: fields.modal || null,
+      valor_pedido: fields.valor ? Number(fields.valor) : null,
+      solicitante: fields.solicitante || null,
+      tipo_ocorrencia: fields.tipoOcorrencia || null,
       status: fields.status,
       responsavel_proxima_acao: fields.proxima,
       descricao: fields.descricao || "Sem descrição informada.",
+      perda: fields.perda ?? null,
+      ordem: fields.ordem === "" || fields.ordem == null ? null : Number(fields.ordem),
     })
     .eq("id", dbId)
     .select()

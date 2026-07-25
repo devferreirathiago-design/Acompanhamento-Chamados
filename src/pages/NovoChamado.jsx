@@ -14,7 +14,7 @@ export default function NovoChamado() {
 
   const [form, setForm] = useState({
     id: "",
-    numeroSic: "",
+    idSolicitacao: "",
     filial: "",
     canal: CANAIS[0],
     modal: MODAIS[0],
@@ -23,6 +23,8 @@ export default function NovoChamado() {
     cadastradoPor: usuario || "",
     tipoOcorrencia: "",
     descricao: "",
+    perda: false,
+    ordem: "",
   });
 
   useEffect(() => {
@@ -44,16 +46,16 @@ export default function NovoChamado() {
       setErro("Informe o ID do pedido.");
       return;
     }
-    if (existentes.some((c) => c.id === idPedido)) {
-      setErro("Já existe um chamado com esse ID de pedido.");
+    if (!form.idSolicitacao.trim()) {
+      setErro("Informe o ID de solicitação.");
+      return;
+    }
+    if (existentes.some((c) => c.idSolicitacao === form.idSolicitacao.trim())) {
+      setErro("Já existe um chamado com esse ID de solicitação.");
       return;
     }
     if (!form.cadastradoPor.trim()) {
       setErro("Informe quem está cadastrando o chamado.");
-      return;
-    }
-    if (!form.numeroSic.trim()) {
-      setErro("Informe o número do SIC.");
       return;
     }
     if (!form.tipoOcorrencia) {
@@ -69,7 +71,7 @@ export default function NovoChamado() {
     try {
       await createChamado({
         idPedido,
-        numeroSic: form.numeroSic.trim(),
+        idSolicitacao: form.idSolicitacao.trim(),
         filial: form.filial,
         canal: form.canal,
         modal: form.modal,
@@ -78,6 +80,8 @@ export default function NovoChamado() {
         cadastradoPor: form.cadastradoPor.trim(),
         tipoOcorrencia: form.tipoOcorrencia,
         descricao: form.descricao.trim(),
+        perda: form.perda,
+        ordem: form.ordem === "" ? null : Number(form.ordem),
       });
       navigate("/");
     } catch (err) {
@@ -93,11 +97,14 @@ export default function NovoChamado() {
 
       <div className="sh-row2">
         <div className="sh-field">
-          <label className="sh-label">Número do SIC</label>
+          <label className="sh-label">ID de solicitação</label>
           <input
-            placeholder="Ex: 12345"
-            value={form.numeroSic}
-            onChange={(e) => setForm({ ...form, numeroSic: e.target.value })}
+            placeholder="Ex: SIC, protocolo do chat..."
+            inputMode="numeric"
+            value={form.idSolicitacao}
+            onChange={(e) =>
+              setForm({ ...form, idSolicitacao: e.target.value.replace(/\D/g, "") })
+            }
           />
         </div>
         <div className="sh-field">
@@ -181,6 +188,29 @@ export default function NovoChamado() {
           value={form.valor}
           onChange={(e) => setForm({ ...form, valor: e.target.value })}
         />
+      </div>
+
+      <div className="sh-row2">
+        <div className="sh-field">
+          <label className="sh-label">Ordem / prioridade</label>
+          <input
+            type="number"
+            min="1"
+            placeholder="Ex: 1, 2 ou 3"
+            value={form.ordem}
+            onChange={(e) => setForm({ ...form, ordem: e.target.value })}
+          />
+        </div>
+        <div className="sh-field" style={{ display: "flex", alignItems: "center" }}>
+          <label className="sh-label" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 18 }}>
+            <input
+              type="checkbox"
+              checked={form.perda}
+              onChange={(e) => setForm({ ...form, perda: e.target.checked })}
+            />
+            Houve perda financeira pra loja?
+          </label>
+        </div>
       </div>
 
       <div className="sh-field">

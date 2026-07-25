@@ -8,7 +8,7 @@ import {
   Building2,
 } from "lucide-react";
 
-export const CANAIS = ["VTEX", "iFood", "Rappi", "Call Center"];
+export const CANAIS = ["VTEX", "iFood", "Rappi", "Call Center", "Logística"];
 export const MODAIS = ["Entrega Rápida", "Entregador de Loja", "Retirada em Loja", "Coleta agendada"];
 export const SOLICITANTES = ["Loja", "SAC"];
 
@@ -57,10 +57,12 @@ export const TIPO_OCORRENCIA_GRUPOS = [
     opcoes: [
       "Coleta",
       "Entrega concluída",
+      "Entregador atrasado",
       "Entregador extra",
       "Extravio",
       "Falta de energia",
       "Fora de rota",
+      "Não entregue",
       "Reclamação sobre entregador",
       "Reenvio",
     ],
@@ -85,15 +87,40 @@ export const TIPO_OCORRENCIA_GRUPOS = [
 
 export const TIPO_OCORRENCIA_LIST = TIPO_OCORRENCIA_GRUPOS.flatMap((g) => g.opcoes);
 
+// Cores oficiais das bandeiras, extraídas do logo da Rede D1000
 export const BANDEIRA_COLOR = {
-  Drogasmil: "#4F8FE8",
-  Farmalife: "#4FBF7A",
-  Tamoio: "#E8A23D",
-  Rosário: "#C77DE0",
+  Drogasmil: "#FBB813",
+  Farmalife: "#F5891F",
+  Tamoio: "#70BD4A",
+  Rosário: "#006CB6",
 };
 
 export function filialInfo(filiais, numero) {
   return filiais.find((f) => f.numero === Number(numero));
+}
+
+// Um chamado criado pela importação rápida (só número + data) fica sem
+// esses campos até alguém completar manualmente pela edição.
+const CAMPOS_OBRIGATORIOS = [
+  ["filial", "Filial"],
+  ["canal", "Canal de venda"],
+  ["modal", "Modal logístico"],
+  ["tipoOcorrencia", "Tipo de ocorrência"],
+  ["valor", "Valor do pedido"],
+  ["solicitante", "Solicitante"],
+];
+
+export function chamadoIncompleto(c) {
+  return CAMPOS_OBRIGATORIOS.some(([campo]) => !c[campo]);
+}
+
+export function camposFaltando(c) {
+  return CAMPOS_OBRIGATORIOS.filter(([campo]) => !c[campo]).map(([, label]) => label);
+}
+
+export function formatDate(iso) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("pt-BR");
 }
 
 export function timeAgo(iso) {

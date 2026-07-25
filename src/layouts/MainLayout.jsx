@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Plus, Sun, Moon, Settings, Loader2 } from "lucide-react";
+import { Plus, Sun, Moon, Settings, Loader2, UploadCloud } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTema } from "../hooks/useTema";
 import AuthGate from "../components/AuthGate";
@@ -92,6 +92,9 @@ export default function MainLayout() {
             </NavLink>
             <NavLink to="/novo" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
               <Plus size={14} /> Novo chamado
+            </NavLink>
+            <NavLink to="/importar" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
+              <UploadCloud size={14} /> Importar
             </NavLink>
             <NavLink to="/configuracoes" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
               <Settings size={14} /> Configurações
@@ -359,7 +362,7 @@ const shStyles = `
         }
         .sh-row {
           display: grid;
-          grid-template-columns: 90px 140px 1fr 90px 170px 130px 90px;
+          grid-template-columns: 90px 140px 1fr 90px 170px 130px 95px 90px;
           gap: 12px;
           align-items: center;
           padding: 12px 16px;
