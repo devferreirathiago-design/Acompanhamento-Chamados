@@ -2,15 +2,25 @@ import {
   Clock3,
   CheckCircle2,
   Circle,
-  Truck,
-  Store,
-  Headphones,
-  Building2,
 } from "lucide-react";
 
 export const CANAIS = ["VTEX", "iFood", "Rappi", "Call Center", "Logística"];
-export const MODAIS = ["Entrega Rápida", "Entregador de Loja", "Retirada em Loja", "Coleta agendada"];
+export const MODAIS = [
+  "Entrega Rápida",
+  "Entregador de Loja",
+  "Retirada em Loja",
+  "Coleta agendada",
+  "Não definido",
+];
 export const SOLICITANTES = ["Loja", "SAC"];
+
+// Prioridade do chamado — lista fechada (1 a 3) pra não ficar um número
+// solto sem limite e sem explicação, como era antes.
+export const ORDEM_OPCOES = [
+  { value: 1, label: "1 — Alta" },
+  { value: 2, label: "2 — Média" },
+  { value: 3, label: "3 — Baixa" },
+];
 
 export const STATUS_LIST = [
   "Não iniciado",
@@ -29,15 +39,6 @@ export const STATUS_META = {
   "Aguardando Transportadora": { color: "#C77DE0", icon: Clock3 },
   Finalizado: { color: "#4FBF7A", icon: CheckCircle2 },
 };
-
-export const PARTY_META = {
-  Operação: { color: "#4F8FE8", icon: Building2 },
-  Loja: { color: "#38B2A3", icon: Store },
-  SAC: { color: "#C77DE0", icon: Headphones },
-  Transportadora: { color: "#E8A23D", icon: Truck },
-};
-
-export const PARTY_LIST = Object.keys(PARTY_META);
 
 export const TIPO_OCORRENCIA_GRUPOS = [
   {
@@ -86,6 +87,13 @@ export const TIPO_OCORRENCIA_GRUPOS = [
 ];
 
 export const TIPO_OCORRENCIA_LIST = TIPO_OCORRENCIA_GRUPOS.flatMap((g) => g.opcoes);
+
+// Acha o grupo (Item e Estoque / Logística e Entrega / etc.) de um tipo de
+// ocorrência já escolhido — usado pra abrir a seleção em duas etapas
+// (grupo primeiro, opção depois) já no grupo certo ao editar um chamado.
+export function grupoDoTipo(tipo) {
+  return TIPO_OCORRENCIA_GRUPOS.find((g) => g.opcoes.includes(tipo))?.grupo || "";
+}
 
 // Cores oficiais das bandeiras, extraídas do logo da Rede D1000
 export const BANDEIRA_COLOR = {

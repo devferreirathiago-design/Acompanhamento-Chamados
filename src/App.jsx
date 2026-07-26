@@ -3,6 +3,7 @@ import MainLayout from "./layouts/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import NovoChamado from "./pages/NovoChamado";
 import ImportarChamados from "./pages/ImportarChamados";
+import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import RedefinirSenha from "./pages/RedefinirSenha";
 
@@ -13,6 +14,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/novo" element={<NovoChamado />} />
         <Route path="/importar" element={<ImportarChamados />} />
+        <Route path="/relatorios" element={<Relatorios />} />
         <Route path="/configuracoes" element={<Configuracoes />} />
         <Route path="/redefinir-senha" element={<RedefinirSenha />} />
       </Route>

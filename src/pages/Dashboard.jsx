@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
-import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History, Trash2, ChevronDown, X } from "lucide-react";
+import { Search, Copy, Check, Pencil, AlertTriangle, Loader2, History, Trash2, ChevronDown, X, User } from "lucide-react";
 import {
   fetchFiliais,
   fetchChamados,
   fetchHistorico,
   updateChamadoStatus,
   updateChamado,
+  updateResponsavel,
   deleteChamado,
   subscribeToChamados,
   subscribeToHistorico,
@@ -17,10 +18,10 @@ import {
   SOLICITANTES,
   STATUS_LIST,
   STATUS_META,
-  PARTY_META,
-  PARTY_LIST,
+  ORDEM_OPCOES,
   BANDEIRA_COLOR,
   TIPO_OCORRENCIA_GRUPOS,
+  grupoDoTipo,
   filialInfo,
   formatDate,
   timeAgo,
@@ -44,11 +45,14 @@ export default function Dashboard() {
 
   const [fStatusList, setFStatusList] = useState([]);
   const [fBandeira, setFBandeira] = useState("Todas");
-  const [fFilial, setFFilial] = useState("Todas");
+  const [fFilialList, setFFilialList] = useState([]);
   const [fSolicitante, setFSolicitante] = useState("Todos");
   const [statusMenuAberto, setStatusMenuAberto] = useState(false);
+  const [filialMenuAberto, setFilialMenuAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [ordenacao, setOrdenacao] = useState("recentes");
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const ITENS_POR_PAGINA = 100;
 
   const [copiedId, setCopiedId] = useState(null);
   const [copiedSolicitacao, setCopiedSolicitacao] = useState(null);
@@ -57,6 +61,8 @@ export default function Dashboard() {
   const [editErro, setEditErro] = useState("");
   const [confirmandoExclusao, setConfirmandoExclusao] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [editandoResponsavel, setEditandoResponsavel] = useState(null);
+  const [responsavelValor, setResponsavelValor] = useState("");
 
   useEffect(() => {
     let vivo = true;
@@ -110,7 +116,7 @@ export default function Dashboard() {
         if (fBandeira === "Todas") return true;
         return filialInfo(filiais, c.filial)?.bandeira === fBandeira;
       })
-      .filter((c) => fFilial === "Todas" || String(c.filial) === String(fFilial))
+      .filter((c) => fFilialList.length === 0 || fFilialList.includes(String(c.filial)))
       .filter((c) => fSolicitante === "Todos" || c.solicitante === fSolicitante)
       .filter((c) => {
         if (!busca.trim()) return true;
@@ -138,7 +144,21 @@ export default function Dashboard() {
 
     // "recentes" (padrão)
     return [...lista].sort((a, b) => new Date(b.criado) - new Date(a.criado));
-  }, [chamados, filiais, fStatusList, fBandeira, fFilial, fSolicitante, busca, ordenacao]);
+  }, [chamados, filiais, fStatusList, fBandeira, fFilialList, fSolicitante, busca, ordenacao]);
+
+  // Sempre que os filtros/busca/ordenação mudam a lista resultante, volta
+  // pra primeira página — senão dava pra ficar "presa" numa página 5 que
+  // não existe mais depois de filtrar.
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [fStatusList, fBandeira, fFilialList, fSolicitante, busca, ordenacao]);
+
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / ITENS_POR_PAGINA));
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const paginados = filtrados.slice(
+    (paginaSegura - 1) * ITENS_POR_PAGINA,
+    paginaSegura * ITENS_POR_PAGINA
+  );
 
   // `expanded`/`editingId` guardam o dbId (chave interna do Supabase), nunca
   // o id_pedido — o pedido pode ficar vazio (chamado incompleto) ou repetido
@@ -164,6 +184,20 @@ export default function Dashboard() {
 
   function toggleStatusFiltro(s) {
     setFStatusList((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
+  }
+
+  // Os cards de status (lá em cima) são exclusivos: clicar num card mostra
+  // SÓ aquele status, substituindo qualquer seleção anterior — clicar de
+  // novo no mesmo card volta pra "Todos". Isso é diferente do menu
+  // suspenso de Status, que continua permitindo marcar vários ao mesmo
+  // tempo (esse aqui usa toggleStatusFiltro acima).
+  function selecionarStatusCard(s) {
+    setFStatusList((prev) => (prev.length === 1 && prev[0] === s ? [] : [s]));
+  }
+
+  function toggleFilialFiltro(numero) {
+    const chave = String(numero);
+    setFFilialList((prev) => (prev.includes(chave) ? prev.filter((x) => x !== chave) : [...prev, chave]));
   }
 
   function toggleHistorico(c) {
@@ -233,6 +267,24 @@ export default function Dashboard() {
     }
   }
 
+  async function salvarResponsavel(chamado) {
+    const novoValor = responsavelValor.trim();
+    setEditandoResponsavel(null);
+    if (novoValor === (chamado.responsavel || "")) return;
+    setChamados((prev) =>
+      prev.map((c) => (c.dbId === chamado.dbId ? { ...c, responsavel: novoValor } : c))
+    );
+    try {
+      await updateResponsavel(chamado.dbId, novoValor, usuario);
+      setActionError("");
+    } catch (err) {
+      setChamados((prev) =>
+        prev.map((c) => (c.dbId === chamado.dbId ? { ...c, responsavel: chamado.responsavel } : c))
+      );
+      setActionError(`Não consegui atualizar o responsável: ${err.message}`);
+    }
+  }
+
   async function confirmarExclusao(chamado) {
     setExcluindo(true);
     try {
@@ -251,7 +303,12 @@ export default function Dashboard() {
 
   function startEdit(c) {
     setEditingId(c.dbId);
-    setEditForm({ ...c, valor: c.valor == null ? "" : String(c.valor) });
+    setEditForm({
+      ...c,
+      valor: c.valor == null ? "" : String(c.valor),
+      responsavel: c.responsavel || "",
+      tipoGrupo: grupoDoTipo(c.tipoOcorrencia),
+    });
     setEditErro("");
     setExpanded(c.dbId);
   }
@@ -280,14 +337,19 @@ export default function Dashboard() {
     comparar("Modal logístico", original.modal, editado.modal);
     comparar("Solicitante", original.solicitante, editado.solicitante);
     comparar("Status", original.status, editado.status);
-    comparar("Próxima ação", original.proxima, editado.proxima);
+    comparar("Responsável", original.responsavel || "—", (editado.responsavel || "").trim() || "—");
     comparar(
       "Valor",
       original.valor,
       Number(editado.valor),
       (v) => `R$ ${Number(v).toFixed(2).replace(".", ",")}`
     );
-    comparar("Ordem/prioridade", original.ordem ?? "—", editado.ordem === "" ? "—" : editado.ordem);
+    comparar(
+      "Ordem de prioridade",
+      original.ordem ?? "",
+      editado.ordem === "" ? "" : Number(editado.ordem),
+      (v) => ORDEM_OPCOES.find((o) => o.value === v)?.label ?? "—"
+    );
     comparar("Perda financeira", !!original.perda, !!editado.perda, (v) => (v ? "Sim" : "Não"));
     if (original.descricao !== editado.descricao.trim()) {
       partes.push("Descrição atualizada");
@@ -392,9 +454,9 @@ export default function Dashboard() {
         {STATUS_LIST.map((s) => (
           <div
             key={s}
-            className={`sh-stat ${fStatusList.includes(s) ? "active" : ""}`}
+            className={`sh-stat ${fStatusList.length === 1 && fStatusList[0] === s ? "active" : ""}`}
             style={{ "--dot": STATUS_META[s].color }}
-            onClick={() => toggleStatusFiltro(s)}
+            onClick={() => selecionarStatusCard(s)}
           >
             <div className="sh-stat-num" style={{ color: STATUS_META[s].color }}>
               {counts[s]}
@@ -464,16 +526,41 @@ export default function Dashboard() {
           </select>
         </div>
 
-        <div className="sh-filter-group">
+        <div className="sh-filter-group" style={{ position: "relative" }}>
           <label className="sh-filter-label">Filial</label>
-          <select className="sh-select" value={fFilial} onChange={(e) => setFFilial(e.target.value)}>
-            <option value="Todas">Todas</option>
-            {filiais.map((f) => (
-              <option key={f.numero} value={f.numero}>
-                {f.nome}
-              </option>
-            ))}
-          </select>
+          <button
+            type="button"
+            className="sh-select sh-multiselect-btn"
+            onClick={() => setFilialMenuAberto((o) => !o)}
+          >
+            {fFilialList.length === 0
+              ? "Todas"
+              : `${fFilialList.length} selecionada${fFilialList.length > 1 ? "s" : ""}`}
+            <ChevronDown size={13} />
+          </button>
+          {filialMenuAberto && (
+            <div className="sh-multiselect-panel" style={{ maxHeight: 260, overflowY: "auto" }}>
+              {filiais.map((f) => (
+                <label key={f.numero} className="sh-multiselect-option">
+                  <input
+                    type="checkbox"
+                    checked={fFilialList.includes(String(f.numero))}
+                    onChange={() => toggleFilialFiltro(f.numero)}
+                  />
+                  {f.nome}
+                </label>
+              ))}
+              {fFilialList.length > 0 && (
+                <button
+                  type="button"
+                  className="sh-multiselect-clear"
+                  onClick={() => setFFilialList([])}
+                >
+                  <X size={11} /> Limpar seleção
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="sh-filter-group">
@@ -507,22 +594,21 @@ export default function Dashboard() {
           <div>Filial</div>
           <div>Canal</div>
           <div>Status</div>
-          <div>Próxima ação</div>
-          <div>Data abertura</div>
-          <div>Aberto</div>
+          <div>Data de abertura</div>
+          <div>Cadastro</div>
+          <div>Responsável</div>
         </div>
 
         {filtrados.length === 0 && !loading && (
           <div className="sh-empty">Nenhum chamado encontrado com esses filtros.</div>
         )}
 
-        {filtrados.map((c) => {
+        {paginados.map((c) => {
           const f = filialInfo(filiais, c.filial);
           const sm = STATUS_META[c.status] || STATUS_META["Não iniciado"];
-          const pm = PARTY_META[c.proxima] || PARTY_META["Operação"];
           const StatusIcon = sm.icon;
-          const PartyIcon = pm.icon;
           const isOpen = expanded === c.dbId;
+          const editandoResp = editandoResponsavel === c.dbId;
           const incompleto = chamadoIncompleto(c);
           return (
             <div key={c.dbId}>
@@ -556,7 +642,7 @@ export default function Dashboard() {
                   title={`${c.id} — clique para copiar`}
                 >
                   {copiedId === c.id ? <Check size={12} /> : <Copy size={12} />}
-                  <span className="sh-id-text">{c.id}</span>
+                  <span className="sh-id-text-lg">{c.id}</span>
                 </button>
                 <div>
                   <div className="sh-filial-name">{f?.nome}</div>
@@ -574,7 +660,7 @@ export default function Dashboard() {
                   {incompleto && (
                     <span
                       className="sh-pill"
-                      style={{ color: "#E8A23D", background: "#E8A23D22" }}
+                      style={{ color: "#3d2705", background: "#E8A23D", fontWeight: 700 }}
                       title={`Faltam: ${camposFaltando(c).join(", ")}`}
                     >
                       <AlertTriangle size={11} />
@@ -582,17 +668,50 @@ export default function Dashboard() {
                     </span>
                   )}
                 </div>
-                <div className="sh-baton" style={{ color: pm.color }}>
-                  <span className="sh-baton-icon" style={{ background: `${pm.color}22` }}>
-                    <PartyIcon size={12} />
-                  </span>
-                  {c.proxima}
-                </div>
                 <div style={{ fontSize: 12, color: "var(--text-dim)" }}>
                   {formatDate(c.criado)}
                 </div>
                 <div style={{ fontSize: 12, color: urgencyColor(c), fontWeight: urgencyColor(c) !== "var(--text-faint)" ? 700 : 400 }}>
                   {timeAgo(c.criado)}
+                </div>
+                <div onClick={(e) => e.stopPropagation()}>
+                  {editandoResp ? (
+                    <input
+                      autoFocus
+                      className="sh-mono"
+                      style={{
+                        width: "100%",
+                        fontSize: 12,
+                        background: "var(--surface-2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 6,
+                        padding: "4px 6px",
+                        color: "var(--text)",
+                      }}
+                      value={responsavelValor}
+                      onChange={(e) => setResponsavelValor(e.target.value)}
+                      onBlur={() => salvarResponsavel(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") setEditandoResponsavel(null);
+                      }}
+                      placeholder="Nome..."
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="sh-id-btn"
+                      style={{ fontSize: 12.5, color: c.responsavel ? "var(--text-dim)" : "var(--text-faint)" }}
+                      onClick={() => {
+                        setEditandoResponsavel(c.dbId);
+                        setResponsavelValor(c.responsavel || "");
+                      }}
+                      title="Clique para editar quem está tratando"
+                    >
+                      <User size={12} />
+                      <span className="sh-id-text">{c.responsavel || "—"}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -601,12 +720,13 @@ export default function Dashboard() {
                   {incompleto && (
                     <div
                       style={{
-                        background: "rgba(232,162,61,0.12)",
+                        background: "rgba(232,162,61,0.28)",
                         border: "1px solid #e8a23d",
-                        color: "#f3d3a3",
+                        color: "#fff1d6",
                         borderRadius: 8,
                         padding: "8px 12px",
                         fontSize: 12.5,
+                        fontWeight: 600,
                         marginBottom: 12,
                         display: "flex",
                         alignItems: "center",
@@ -655,7 +775,11 @@ export default function Dashboard() {
                       <strong>Cadastrado por:</strong> {c.cadastradoPor}
                     </div>
                     <div>
-                      <strong>Ordem/prioridade:</strong> {c.ordem ?? "—"}
+                      <strong>Responsável:</strong> {c.responsavel || "—"}
+                    </div>
+                    <div>
+                      <strong>Ordem de prioridade:</strong>{" "}
+                      {ORDEM_OPCOES.find((o) => o.value === c.ordem)?.label ?? "—"}
                     </div>
                     <div>
                       <strong>Perda financeira:</strong>{" "}
@@ -766,23 +890,40 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="sh-edit-grid full">
+                  <div className="sh-edit-grid">
+                    <div className="sh-field">
+                      <label className="sh-label">Categoria da ocorrência</label>
+                      <select
+                        value={editForm.tipoGrupo || ""}
+                        onChange={(e) =>
+                          setEditForm({ ...editForm, tipoGrupo: e.target.value, tipoOcorrencia: "" })
+                        }
+                      >
+                        <option value="" disabled>
+                          Selecione a categoria...
+                        </option>
+                        {TIPO_OCORRENCIA_GRUPOS.map((g) => (
+                          <option key={g.grupo} value={g.grupo}>
+                            {g.grupo}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="sh-field">
                       <label className="sh-label">Tipo de ocorrência</label>
                       <select
                         value={editForm.tipoOcorrencia}
+                        disabled={!editForm.tipoGrupo}
                         onChange={(e) => setEditForm({ ...editForm, tipoOcorrencia: e.target.value })}
                       >
                         <option value="" disabled>
-                          Selecione...
+                          {editForm.tipoGrupo ? "Selecione..." : "Escolha a categoria primeiro"}
                         </option>
-                        {TIPO_OCORRENCIA_GRUPOS.map((g) => (
-                          <optgroup key={g.grupo} label={g.grupo}>
-                            {g.opcoes.map((o) => (
-                              <option key={o}>{o}</option>
-                            ))}
-                          </optgroup>
-                        ))}
+                        {(TIPO_OCORRENCIA_GRUPOS.find((g) => g.grupo === editForm.tipoGrupo)?.opcoes || []).map(
+                          (o) => (
+                            <option key={o}>{o}</option>
+                          )
+                        )}
                       </select>
                     </div>
                   </div>
@@ -853,22 +994,27 @@ export default function Dashboard() {
 
                   <div className="sh-edit-grid">
                     <div className="sh-field">
-                      <label className="sh-label">Ordem / prioridade</label>
-                      <input
-                        type="number"
-                        min="1"
+                      <label className="sh-label">Ordem de prioridade</label>
+                      <select
                         value={editForm.ordem ?? ""}
                         onChange={(e) => setEditForm({ ...editForm, ordem: e.target.value })}
-                      />
+                      >
+                        <option value="">Não definida</option>
+                        {ORDEM_OPCOES.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div className="sh-field" style={{ display: "flex", alignItems: "center" }}>
-                      <label className="sh-label" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 18 }}>
+                      <label className="sh-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 18, width: "100%" }}>
+                        Houve perda financeira pra loja?
                         <input
                           type="checkbox"
                           checked={!!editForm.perda}
                           onChange={(e) => setEditForm({ ...editForm, perda: e.target.checked })}
                         />
-                        Houve perda financeira pra loja?
                       </label>
                     </div>
                   </div>
@@ -886,15 +1032,12 @@ export default function Dashboard() {
                       </select>
                     </div>
                     <div className="sh-field">
-                      <label className="sh-label">Próxima ação — responsável</label>
-                      <select
-                        value={editForm.proxima}
-                        onChange={(e) => setEditForm({ ...editForm, proxima: e.target.value })}
-                      >
-                        {PARTY_LIST.map((p) => (
-                          <option key={p}>{p}</option>
-                        ))}
-                      </select>
+                      <label className="sh-label">Responsável (quem está tratando)</label>
+                      <input
+                        value={editForm.responsavel || ""}
+                        placeholder="Nome de quem está tratando..."
+                        onChange={(e) => setEditForm({ ...editForm, responsavel: e.target.value })}
+                      />
                     </div>
                   </div>
 
@@ -962,6 +1105,47 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {filtrados.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginTop: 12,
+            fontSize: 12.5,
+            color: "var(--text-dim)",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            Mostrando {(paginaSegura - 1) * ITENS_POR_PAGINA + 1}–
+            {Math.min(paginaSegura * ITENS_POR_PAGINA, filtrados.length)} de {filtrados.length}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              className="sh-ghost-btn"
+              disabled={paginaSegura <= 1}
+              onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+            >
+              Anterior
+            </button>
+            <span>
+              Página {paginaSegura} de {totalPaginas}
+            </span>
+            <button
+              type="button"
+              className="sh-ghost-btn"
+              disabled={paginaSegura >= totalPaginas}
+              onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Plus, Sun, Moon, Settings, Loader2, UploadCloud } from "lucide-react";
+import { Plus, Sun, Moon, Settings, Loader2, UploadCloud, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useTema } from "../hooks/useTema";
 import AuthGate from "../components/AuthGate";
@@ -95,6 +95,9 @@ export default function MainLayout() {
             </NavLink>
             <NavLink to="/importar" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
               <UploadCloud size={14} /> Importar
+            </NavLink>
+            <NavLink to="/relatorios" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
+              <FileSpreadsheet size={14} /> Relatórios
             </NavLink>
             <NavLink to="/configuracoes" className={({ isActive }) => `sh-tab ${isActive ? "active" : ""}`}>
               <Settings size={14} /> Configurações
@@ -252,30 +255,30 @@ const shStyles = `
 
         .sh-toolbar {
           display: flex;
-          gap: 14px;
+          gap: 8px;
           flex-wrap: wrap;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
           align-items: flex-end;
         }
         .sh-filter-group {
           display: flex;
           flex-direction: column;
-          gap: 5px;
+          gap: 3px;
         }
         .sh-filter-label {
-          font-size: 11px;
+          font-size: 9.5px;
           font-weight: 600;
           color: var(--text-faint);
           text-transform: uppercase;
-          letter-spacing: 0.04em;
+          letter-spacing: 0.03em;
         }
         .sh-select, .sh-input {
           background: var(--surface);
           border: 1px solid var(--border);
           color: var(--text);
-          border-radius: 8px;
-          padding: 8px 10px;
-          font-size: 13px;
+          border-radius: 7px;
+          padding: 6px 8px;
+          font-size: 12.5px;
         }
         .sh-select:focus-visible, .sh-input:focus-visible {
           outline: 2px solid var(--accent);
@@ -285,8 +288,8 @@ const shStyles = `
           cursor: pointer;
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          min-width: 140px;
+          gap: 6px;
+          min-width: 96px;
           justify-content: space-between;
         }
         .sh-multiselect-panel {
@@ -329,19 +332,19 @@ const shStyles = `
         .sh-search {
           position: relative;
           flex: 1;
-          min-width: 180px;
+          min-width: 150px;
         }
         .sh-search input {
           width: 100%;
-          padding-left: 32px;
+          padding-left: 30px;
           background: var(--surface);
           border: 1px solid var(--border);
           color: var(--text);
-          border-radius: 8px;
-          padding-top: 8px;
-          padding-bottom: 8px;
-          padding-right: 10px;
-          font-size: 13px;
+          border-radius: 7px;
+          padding-top: 6px;
+          padding-bottom: 6px;
+          padding-right: 8px;
+          font-size: 12.5px;
         }
         .sh-search input:focus-visible {
           outline: 2px solid var(--accent);
@@ -362,7 +365,7 @@ const shStyles = `
         }
         .sh-row {
           display: grid;
-          grid-template-columns: 90px 140px 1fr 90px 170px 130px 95px 90px;
+          grid-template-columns: 90px 200px 1fr 90px 170px 100px 90px 130px;
           gap: 12px;
           align-items: center;
           padding: 12px 16px;
@@ -454,6 +457,12 @@ const shStyles = `
           text-overflow: ellipsis;
           white-space: nowrap;
           max-width: 106px;
+        }
+        .sh-id-text-lg {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 165px;
         }
 
         .sh-detail-row {
@@ -574,7 +583,7 @@ const shStyles = `
             grid-template-areas:
               "id status"
               "filial filial"
-              "canal proxima";
+              "canal responsavel";
           }
           .sh-row.head { display: none; }
           .sh-row2 { grid-template-columns: 1fr; }
@@ -667,13 +676,21 @@ const shStyles = `
         }
         .sh-timeline-toggle:hover { color: var(--text-dim); }
         .sh-timeline-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-        .sh-timeline-list { margin-top: 8px; }
+        .sh-timeline-list {
+          margin-top: 8px;
+          display: flex;
+          flex-direction: column;
+        }
         .sh-timeline-item {
           display: flex;
+          flex-direction: row;
+          align-items: flex-start;
           gap: 10px;
           padding: 6px 0;
           font-size: 12.5px;
+          border-bottom: 1px solid var(--border);
         }
+        .sh-timeline-item:last-child { border-bottom: none; }
         .sh-timeline-dot {
           width: 6px;
           height: 6px;

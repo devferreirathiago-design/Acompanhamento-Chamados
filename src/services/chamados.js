@@ -22,7 +22,7 @@ export function normalizeChamado(row) {
     cadastradoPor: row.cadastrado_por,
     tipoOcorrencia: row.tipo_ocorrencia || "",
     status: row.status,
-    proxima: row.responsavel_proxima_acao,
+    responsavel: row.responsavel_atual || "",
     descricao: row.descricao,
     criado: row.data_criacao,
     perda: row.perda,
@@ -69,13 +69,28 @@ export async function updateFilial(numero, { nome, bandeira, regional }) {
   return normalizeFilial(data);
 }
 
+// O Supabase/PostgREST só devolve até 1000 linhas por request (limite
+// padrão do projeto), mesmo pedindo tudo com select("*"). Sem paginar
+// aqui, qualquer tabela com mais de 1000 chamados aparecia cortada na
+// marra (o "Todos" do painel travava em 1000). Busca em blocos de 1000
+// até a página vir mais vazia que o tamanho pedido.
 export async function fetchChamados() {
-  const { data, error } = await supabase
-    .from("chamados")
-    .select("*")
-    .order("data_criacao", { ascending: false });
-  if (error) throw error;
-  return data.map(normalizeChamado);
+  const TAMANHO_PAGINA = 1000;
+  let todos = [];
+  let inicio = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from("chamados")
+      .select("*")
+      .order("data_criacao", { ascending: false })
+      .range(inicio, inicio + TAMANHO_PAGINA - 1);
+    if (error) throw error;
+    todos = todos.concat(data);
+    if (!data.length || data.length < TAMANHO_PAGINA) break;
+    inicio += TAMANHO_PAGINA;
+  }
+  return todos.map(normalizeChamado);
 }
 
 export function normalizeHistorico(row) {
@@ -118,6 +133,7 @@ export async function createChamado({
   descricao,
   perda,
   ordem,
+  responsavel,
   criadoEm,
 }) {
   const linha = {
@@ -130,7 +146,11 @@ export async function createChamado({
     solicitante: solicitante || null,
     cadastrado_por: cadastradoPor,
     tipo_ocorrencia: tipoOcorrencia || null,
-    responsavel_proxima_acao: "Operação",
+    // Coluna antiga "próxima ação" não existe mais na interface, mas ainda
+    // é obrigatória no banco — grava um valor fixo só pra satisfazer a
+    // constraint, sem exibir/usar isso em lugar nenhum do app.
+    responsavel_proxima_acao: "Suporte",
+    responsavel_atual: responsavel || null,
     descricao: descricao || "Sem descrição informada.",
     perda: perda ?? null,
     ordem: ordem ?? null,
@@ -168,7 +188,8 @@ export async function createChamadosRapidos(lista, cadastradoPor) {
     perda: null,
     ordem: null,
     cadastrado_por: cadastradoPor,
-    responsavel_proxima_acao: "Operação",
+    responsavel_proxima_acao: "Suporte",
+    responsavel_atual: null,
     descricao: "Importado da fila — aguardando preenchimento dos dados.",
     // Sempre manda data_criacao (nunca omite): num insert em lote, o
     // Supabase monta um único INSERT com a união das colunas de todas
@@ -223,7 +244,7 @@ export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
       solicitante: fields.solicitante || null,
       tipo_ocorrencia: fields.tipoOcorrencia || null,
       status: fields.status,
-      responsavel_proxima_acao: fields.proxima,
+      responsavel_atual: fields.responsavel || null,
       descricao: fields.descricao || "Sem descrição informada.",
       perda: fields.perda ?? null,
       ordem: fields.ordem === "" || fields.ordem == null ? null : Number(fields.ordem),
@@ -236,6 +257,24 @@ export async function updateChamado(dbId, fields, usuario, resumoMudancas) {
     dbId,
     usuario,
     resumoMudancas || "Chamado editado."
+  );
+  return normalizeChamado(data);
+}
+
+// Edição rápida do "responsável" direto na lista (sem abrir o formulário
+// inteiro de edição) — usada pela coluna que fica depois de "Aberto".
+export async function updateResponsavel(dbId, responsavel, usuario) {
+  const { data, error } = await supabase
+    .from("chamados")
+    .update({ responsavel_atual: responsavel || null })
+    .eq("id", dbId)
+    .select()
+    .single();
+  if (error) throw error;
+  await addHistorico(
+    dbId,
+    usuario,
+    `Responsável atualizado para "${responsavel || "—"}".`
   );
   return normalizeChamado(data);
 }

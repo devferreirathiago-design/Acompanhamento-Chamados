@@ -194,7 +194,7 @@ export default function ImportarChamados() {
       {resultado && (
         <div
           className="sh-toast"
-          style={{ marginTop: 12, background: "rgba(79,191,122,0.12)", borderColor: "#4fbf7a", color: "#bcefd0" }}
+          style={{ marginTop: 12, background: "rgba(79,191,122,0.28)", border: "1.5px solid #4fbf7a", color: "#eafff2", fontWeight: 600 }}
         >
           <CheckCircle2 size={16} />
           {resultado}

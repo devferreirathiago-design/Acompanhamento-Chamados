@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { fetchFiliais, fetchChamados, createChamado } from "../services/chamados";
-import { CANAIS, MODAIS, SOLICITANTES, TIPO_OCORRENCIA_GRUPOS } from "../constants/chamados";
+import { CANAIS, MODAIS, SOLICITANTES, TIPO_OCORRENCIA_GRUPOS, ORDEM_OPCOES } from "../constants/chamados";
 
 export default function NovoChamado() {
   const navigate = useNavigate();
@@ -11,6 +11,7 @@ export default function NovoChamado() {
   const [existentes, setExistentes] = useState([]);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
+  const [confirmandoSemDescricao, setConfirmandoSemDescricao] = useState(false);
 
   const [form, setForm] = useState({
     id: "",
@@ -21,10 +22,12 @@ export default function NovoChamado() {
     valor: "",
     solicitante: SOLICITANTES[0],
     cadastradoPor: usuario || "",
+    tipoGrupo: "",
     tipoOcorrencia: "",
     descricao: "",
     perda: false,
     ordem: "",
+    responsavel: "",
   });
 
   useEffect(() => {
@@ -66,6 +69,11 @@ export default function NovoChamado() {
       setErro("Informe um valor de pedido válido.");
       return;
     }
+    if (!form.descricao.trim() && !confirmandoSemDescricao) {
+      setErro('A descrição está vazia. Clique em "Abrir chamado" de novo se quiser salvar assim mesmo.');
+      setConfirmandoSemDescricao(true);
+      return;
+    }
     setErro("");
     setSaving(true);
     try {
@@ -82,6 +90,7 @@ export default function NovoChamado() {
         descricao: form.descricao.trim(),
         perda: form.perda,
         ordem: form.ordem === "" ? null : Number(form.ordem),
+        responsavel: form.responsavel.trim(),
       });
       navigate("/");
     } catch (err) {
@@ -117,23 +126,38 @@ export default function NovoChamado() {
         </div>
       </div>
 
-      <div className="sh-field">
-        <label className="sh-label">Tipo de ocorrência</label>
-        <select
-          value={form.tipoOcorrencia}
-          onChange={(e) => setForm({ ...form, tipoOcorrencia: e.target.value })}
-        >
-          <option value="" disabled>
-            Selecione...
-          </option>
-          {TIPO_OCORRENCIA_GRUPOS.map((g) => (
-            <optgroup key={g.grupo} label={g.grupo}>
-              {g.opcoes.map((o) => (
-                <option key={o}>{o}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+      <div className="sh-row2">
+        <div className="sh-field">
+          <label className="sh-label">Categoria da ocorrência</label>
+          <select
+            value={form.tipoGrupo}
+            onChange={(e) => setForm({ ...form, tipoGrupo: e.target.value, tipoOcorrencia: "" })}
+          >
+            <option value="" disabled>
+              Selecione a categoria...
+            </option>
+            {TIPO_OCORRENCIA_GRUPOS.map((g) => (
+              <option key={g.grupo} value={g.grupo}>
+                {g.grupo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="sh-field">
+          <label className="sh-label">Tipo de ocorrência</label>
+          <select
+            value={form.tipoOcorrencia}
+            disabled={!form.tipoGrupo}
+            onChange={(e) => setForm({ ...form, tipoOcorrencia: e.target.value })}
+          >
+            <option value="" disabled>
+              {form.tipoGrupo ? "Selecione..." : "Escolha a categoria primeiro"}
+            </option>
+            {(TIPO_OCORRENCIA_GRUPOS.find((g) => g.grupo === form.tipoGrupo)?.opcoes || []).map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="sh-row2">
@@ -192,34 +216,45 @@ export default function NovoChamado() {
 
       <div className="sh-row2">
         <div className="sh-field">
-          <label className="sh-label">Ordem / prioridade</label>
-          <input
-            type="number"
-            min="1"
-            placeholder="Ex: 1, 2 ou 3"
-            value={form.ordem}
-            onChange={(e) => setForm({ ...form, ordem: e.target.value })}
-          />
+          <label className="sh-label">Ordem de prioridade</label>
+          <select value={form.ordem} onChange={(e) => setForm({ ...form, ordem: e.target.value })}>
+            <option value="">Não definida</option>
+            {ORDEM_OPCOES.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="sh-field" style={{ display: "flex", alignItems: "center" }}>
-          <label className="sh-label" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 18 }}>
+          <label className="sh-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 18, width: "100%" }}>
+            Houve perda financeira pra loja?
             <input
               type="checkbox"
               checked={form.perda}
               onChange={(e) => setForm({ ...form, perda: e.target.checked })}
             />
-            Houve perda financeira pra loja?
           </label>
         </div>
       </div>
 
-      <div className="sh-field">
-        <label className="sh-label">Cadastrado por</label>
-        <input
-          placeholder="Seu nome"
-          value={form.cadastradoPor}
-          onChange={(e) => setForm({ ...form, cadastradoPor: e.target.value })}
-        />
+      <div className="sh-row2">
+        <div className="sh-field">
+          <label className="sh-label">Cadastrado por</label>
+          <input
+            placeholder="Seu nome"
+            value={form.cadastradoPor}
+            onChange={(e) => setForm({ ...form, cadastradoPor: e.target.value })}
+          />
+        </div>
+        <div className="sh-field">
+          <label className="sh-label">Responsável (quem vai tratar)</label>
+          <input
+            placeholder="Opcional — pode preencher depois"
+            value={form.responsavel}
+            onChange={(e) => setForm({ ...form, responsavel: e.target.value })}
+          />
+        </div>
       </div>
 
       <div className="sh-field">
@@ -227,12 +262,20 @@ export default function NovoChamado() {
         <textarea
           placeholder="Descreva o que aconteceu..."
           value={form.descricao}
-          onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+          onChange={(e) => {
+            setForm({ ...form, descricao: e.target.value });
+            if (e.target.value.trim()) setConfirmandoSemDescricao(false);
+          }}
         />
       </div>
 
       <button className="sh-submit" type="submit" disabled={saving}>
-        {saving ? "Salvando..." : "Abrir chamado"} <ArrowRight size={14} />
+        {saving
+          ? "Salvando..."
+          : confirmandoSemDescricao
+          ? "Confirmar sem descrição"
+          : "Abrir chamado"}{" "}
+        <ArrowRight size={14} />
       </button>
     </form>
   );
